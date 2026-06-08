@@ -13,7 +13,7 @@ if not exist node_modules (
 )
 
 echo.
-echo Starting TWINO Agents Dashboard...
+echo Starting Agents Dashboard...
 echo.
 start "" "http://localhost:4173"
 node server.js

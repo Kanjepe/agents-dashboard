@@ -110,7 +110,7 @@ watcher.on('change', onJsonlChange);
 watcher.on('error', (err) => console.error('[watch] error:', err.message));
 
 server.listen(PORT, () => {
-  console.log(`\n  TWINO Agents Dashboard`);
+  console.log(`\n  Agents Dashboard`);
   console.log(`  ─────────────────────────`);
   console.log(`  Watching: ${projectsDir}`);
   console.log(`  Open:     http://localhost:${PORT}\n`);

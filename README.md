@@ -1,6 +1,8 @@
-# TWINO Agents Dashboard
+# Agents Dashboard
 
 Local real-time dashboard for monitoring Claude Code sessions and subagents — a passive read-only observer over `~/.claude/projects/` JSONL files.
+
+Works for anyone running Claude Code locally; no organization-specific assumptions.
 
 ![status](https://img.shields.io/badge/status-MVP-7AB648)
 ![node](https://img.shields.io/badge/node-%3E%3D18-7AB648)
@@ -237,13 +239,13 @@ nssm start AgentsDashboard
 
 ### macOS — launchd
 
-Create `~/Library/LaunchAgents/com.twino.agents-dashboard.plist`:
+Create `~/Library/LaunchAgents/agents-dashboard.plist`:
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <plist version="1.0">
 <dict>
-  <key>Label</key><string>com.twino.agents-dashboard</string>
+  <key>Label</key><string>com.agents-dashboard</string>
   <key>ProgramArguments</key>
   <array>
     <string>/usr/local/bin/node</string>
@@ -259,7 +261,7 @@ Create `~/Library/LaunchAgents/com.twino.agents-dashboard.plist`:
 Then:
 
 ```bash
-launchctl load ~/Library/LaunchAgents/com.twino.agents-dashboard.plist
+launchctl load ~/Library/LaunchAgents/agents-dashboard.plist
 ```
 
 ### Linux — systemd
@@ -268,7 +270,7 @@ Create `/etc/systemd/system/agents-dashboard.service`:
 
 ```ini
 [Unit]
-Description=TWINO Agents Dashboard
+Description=Agents Dashboard
 After=network.target
 
 [Service]
@@ -440,4 +442,4 @@ Per session, the parser walks every JSONL line and accumulates:
 
 ## License
 
-Internal TWINO tool. No license file.
+MIT — use freely.

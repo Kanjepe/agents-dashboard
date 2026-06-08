@@ -260,3 +260,76 @@ test('currentTool preserved for "waiting" status', () => {
   assert.equal(s.status, 'waiting');
   assert.equal(s.currentTool, 'Bash');
 });
+
+test('subagents: extracts Task tool_use with subagent_type', () => {
+  const entries = [
+    makeAssistant({
+      tools: [
+        {
+          id: 't1',
+          name: 'Task',
+          input: { subagent_type: 'gsd-planner', description: 'Plan phase X' },
+        },
+      ],
+    }),
+  ];
+  const s = aggregateSession('sid', entries, statsAgo(0));
+  assert.equal(s.subagents.length, 1);
+  assert.equal(s.subagents[0].type, 'gsd-planner');
+  assert.equal(s.subagents[0].description, 'Plan phase X');
+  assert.equal(s.subagents[0].completed, false);
+  assert.equal(s.currentTool, 'Task');
+  assert.equal(s.currentToolDetail, 'gsd-planner');
+});
+
+test('subagents: marked completed when tool_result matches', () => {
+  const ts1 = isoAgo(20_000);
+  const ts2 = isoAgo(5_000);
+  const entries = [
+    makeAssistant({ ts: ts1, tools: [{ id: 't1', name: 'Task', input: { subagent_type: 'reviewer' } }] }),
+    makeToolResult('t1', ts2),
+  ];
+  const s = aggregateSession('sid', entries, statsAgo(5_000));
+  assert.equal(s.subagents.length, 1);
+  assert.equal(s.subagents[0].completed, true);
+  assert.ok(s.subagents[0].durationMs >= 14_000 && s.subagents[0].durationMs <= 16_000);
+});
+
+test('skills: extracts Skill tool_use with skill name', () => {
+  const entries = [
+    makeAssistant({
+      tools: [{ id: 't1', name: 'Skill', input: { skill: 'twino-skill-manager' } }],
+    }),
+  ];
+  const s = aggregateSession('sid', entries, statsAgo(0));
+  assert.equal(s.skills.length, 1);
+  assert.equal(s.skills[0].name, 'twino-skill-manager');
+  assert.equal(s.currentToolDetail, 'twino-skill-manager');
+});
+
+test('subagents and skills both collected in one session', () => {
+  const entries = [
+    makeAssistant({ tools: [{ id: 't1', name: 'Task', input: { subagent_type: 'gsd-planner' } }] }),
+    makeAssistant({ tools: [{ id: 't2', name: 'Skill', input: { skill: '/review' } }] }),
+    makeAssistant({ tools: [{ id: 't3', name: 'Task', input: { subagent_type: 'code-reviewer' } }] }),
+  ];
+  const s = aggregateSession('sid', entries, statsAgo(0));
+  assert.equal(s.subagents.length, 2);
+  assert.equal(s.skills.length, 1);
+  assert.deepEqual(
+    s.subagents.map((x) => x.type),
+    ['gsd-planner', 'code-reviewer'],
+  );
+});
+
+test('currentToolDetail null for paused/idle status', () => {
+  const ts = isoAgo(10 * 60_000);
+  const entries = [
+    makeAssistant({ ts, tools: [{ id: 't1', name: 'Task', input: { subagent_type: 'gsd-planner' } }] }),
+    makeToolResult('t1', ts),
+  ];
+  const s = aggregateSession('sid', entries, statsAgo(10 * 60_000));
+  assert.equal(s.status, 'paused');
+  assert.equal(s.currentTool, null);
+  assert.equal(s.currentToolDetail, null);
+});

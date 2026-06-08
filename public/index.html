@@ -79,12 +79,25 @@
           <span class="filter__mark">▸</span> all
         </button>
         <span class="filter__divider" aria-hidden="true">|</span>
+        <button class="filter filter--agent" data-filter="agents">
+          <span class="filter__mark">▸</span> agents
+        </button>
+        <button class="filter filter--skill" data-filter="skills">
+          <span class="filter__mark">▸</span> skills
+        </button>
+        <button class="filter filter--mix" data-filter="activity">
+          <span class="filter__mark">▸</span> activity
+        </button>
+        <span class="filter__divider" aria-hidden="true">|</span>
         <button class="filter filter--alt" data-filter="stats">
           <span class="filter__mark">▸</span> stats
         </button>
       </nav>
 
       <section id="grid" class="entries" aria-label="Sessions"></section>
+      <section id="agents-view" class="entries entries--alt" aria-label="Subagents" hidden></section>
+      <section id="skills-view" class="entries entries--alt" aria-label="Skills" hidden></section>
+      <section id="activity-view" class="activity" aria-label="Activity timeline" hidden></section>
 
       <p id="empty" class="empty" hidden>
         <span class="empty__bracket">[</span>

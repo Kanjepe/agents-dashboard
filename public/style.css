@@ -386,6 +386,24 @@ code {
   text-shadow: 0 0 6px var(--amber-glow);
 }
 
+.filter--agent[data-active="true"],
+.filter--agent[data-active="true"] .filter__mark {
+  color: var(--amber);
+  text-shadow: 0 0 6px var(--amber-glow);
+}
+
+.filter--skill[data-active="true"],
+.filter--skill[data-active="true"] .filter__mark {
+  color: var(--blue);
+  text-shadow: 0 0 6px rgba(108, 182, 255, 0.5);
+}
+
+.filter--mix[data-active="true"],
+.filter--mix[data-active="true"] .filter__mark {
+  color: var(--text-bright);
+  text-shadow: 0 0 6px rgba(216, 245, 221, 0.4);
+}
+
 .filter__divider {
   color: var(--border);
   align-self: center;
@@ -666,6 +684,11 @@ code {
   text-shadow: 0 0 6px var(--green-glow);
 }
 
+.entry__arrow {
+  color: var(--border-bright);
+  margin: 0 0.2em;
+}
+
 .entry[data-status="waiting"] .entry__current::before,
 .entry[data-status="waiting"] .entry__current strong {
   color: var(--amber);
@@ -790,6 +813,315 @@ code {
 .empty__hint {
   font-size: 0.78rem;
   color: var(--border-bright);
+}
+
+/* ==========================================================================
+   Work-unit cards (agents view + skills view)
+   ========================================================================== */
+
+.entries--alt {
+  margin-top: 1.5rem;
+}
+
+.work-card {
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  animation: entry-in 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+}
+
+.work-card--agent {
+  border-color: var(--border);
+}
+.work-card--agent[data-active="true"] {
+  border-color: var(--amber);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 178, 77, 0.08),
+    0 0 22px -10px var(--amber-glow);
+}
+.work-card--skill {
+  border-color: var(--border);
+}
+
+.work-card__head {
+  display: grid;
+  grid-template-columns: max-content 1fr max-content;
+  gap: 0.6rem;
+  align-items: center;
+  padding: 0.4rem 0.7rem;
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--border);
+  font-size: 0.68rem;
+  text-transform: lowercase;
+  letter-spacing: 0.06em;
+}
+
+.work-card__kind {
+  color: var(--text-dim);
+  font-weight: 500;
+}
+
+.work-card--agent .work-card__kind {
+  color: var(--amber);
+  text-shadow: 0 0 5px var(--amber-glow);
+}
+
+.work-card--skill .work-card__kind {
+  color: var(--blue);
+}
+
+.work-card__active {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-dim);
+  font-weight: 500;
+}
+
+.work-card__active .dot {
+  width: 7px;
+  height: 7px;
+  background: var(--amber);
+  box-shadow: 0 0 8px var(--amber-glow);
+  display: inline-block;
+  animation: blink 1.2s ease-in-out infinite;
+}
+
+.work-card__active.zero {
+  color: var(--text-dim);
+}
+.work-card__active.zero .dot {
+  background: var(--border-bright);
+  box-shadow: none;
+  animation: none;
+}
+
+.work-card__lastseen {
+  color: var(--text-dim);
+  font-feature-settings: "tnum" 1;
+  white-space: nowrap;
+}
+
+.work-card__body {
+  padding: 0.7rem 0.85rem 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  flex: 1;
+}
+
+.work-card__title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-bright);
+  line-height: 1.25;
+  word-break: break-all;
+}
+
+.work-card--agent .work-card__title::before {
+  content: "↪ ";
+  color: var(--amber);
+  text-shadow: 0 0 6px var(--amber-glow);
+}
+.work-card--skill .work-card__title::before {
+  content: "/ ";
+  color: var(--blue);
+}
+
+.work-card__stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border: 1px solid var(--border);
+  background: var(--bg-2);
+  font-feature-settings: "tnum" 1;
+}
+
+.work-card__stats .stat-cell {
+  padding: 0.4rem 0.4rem 0.35rem;
+  text-align: center;
+  border-right: 1px solid var(--border);
+}
+
+.work-card__stats .stat-cell:last-child {
+  border-right: 0;
+}
+
+.work-card__stats .stat-cell__num {
+  display: block;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-bright);
+}
+
+.work-card--agent .work-card__stats .stat-cell--active .stat-cell__num.has-active {
+  color: var(--amber);
+  text-shadow: 0 0 6px var(--amber-glow);
+}
+
+.work-card__stats .stat-cell__label {
+  display: block;
+  margin-top: 0.05rem;
+  font-size: 0.58rem;
+  color: var(--text-dim);
+  text-transform: lowercase;
+  letter-spacing: 0.1em;
+}
+
+.work-card__parents {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.74rem;
+  color: var(--text-dim);
+}
+
+.work-card__parents-head {
+  font-size: 0.6rem;
+  color: var(--text-dim);
+  text-transform: lowercase;
+  letter-spacing: 0.12em;
+  margin-bottom: 0.15rem;
+}
+
+.work-card__parents li {
+  display: grid;
+  grid-template-columns: 1rem 1fr max-content;
+  gap: 0.45rem;
+  align-items: baseline;
+}
+
+.work-card__parents li .arrow {
+  color: var(--border-bright);
+}
+
+.work-card__parents li .name {
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.work-card__parents li .count {
+  color: var(--text-dim);
+  font-feature-settings: "tnum" 1;
+}
+
+.work-card__parents li .count em {
+  color: var(--amber);
+  font-style: normal;
+  font-weight: 500;
+  text-shadow: 0 0 4px var(--amber-glow);
+  margin-right: 0.25em;
+}
+
+/* ==========================================================================
+   Activity timeline (combined feed)
+   ========================================================================== */
+
+.activity {
+  margin-top: 1.5rem;
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  padding: 0.4rem 0.6rem 0.6rem;
+  font-size: 0.78rem;
+  font-feature-settings: "tnum" 1;
+}
+
+.activity__row {
+  display: grid;
+  grid-template-columns: max-content max-content max-content 1fr max-content;
+  gap: 0.65rem 1rem;
+  align-items: baseline;
+  padding: 0.32rem 0.4rem;
+  border-bottom: 1px dashed var(--border-dim);
+  line-height: 1.45;
+}
+
+.activity__row:last-child {
+  border-bottom: 0;
+}
+
+.activity__row:hover {
+  background: var(--bg-2);
+}
+
+.activity__time {
+  color: var(--text-dim);
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+
+.activity__kind {
+  display: inline-block;
+  font-size: 0.62rem;
+  text-transform: lowercase;
+  letter-spacing: 0.1em;
+  padding: 0.05em 0.4em;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.activity__row[data-kind="agent"] .activity__kind {
+  color: var(--amber);
+  border-color: var(--amber);
+  text-shadow: 0 0 4px var(--amber-glow);
+}
+
+.activity__row[data-kind="skill"] .activity__kind {
+  color: var(--blue);
+  border-color: var(--blue);
+}
+
+.activity__name {
+  color: var(--text-bright);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.activity__status {
+  color: var(--text-dim);
+  font-size: 0.7rem;
+  font-style: italic;
+  white-space: nowrap;
+}
+
+.activity__status.running {
+  color: var(--amber);
+  text-shadow: 0 0 4px var(--amber-glow);
+}
+
+.activity__status.done {
+  color: var(--green);
+}
+
+.activity__parent {
+  color: var(--text-dim);
+  font-size: 0.72rem;
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.activity__parent::before {
+  content: "↪ ";
+  color: var(--border-bright);
+}
+
+.activity__empty {
+  text-align: center;
+  color: var(--text-dim);
+  padding: 3rem 1rem;
+  font-style: italic;
 }
 
 /* ==========================================================================

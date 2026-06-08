@@ -29,17 +29,26 @@ const topMonthEl = document.getElementById('top-month');
 let sessions = new Map();
 let processes = [];
 let stats = null;
+let activity = { agents: [], skills: [], timeline: [] };
 let currentFilter = 'live';
 const entryEls = new Map();
 
+const SESSION_FILTERS = new Set(['live', 'waiting', 'paused', 'all']);
+
 const statsPanelEl = document.querySelector('.stats-panel');
 const entriesEl = document.getElementById('grid');
+const agentsViewEl = document.getElementById('agents-view');
+const skillsViewEl = document.getElementById('skills-view');
+const activityViewEl = document.getElementById('activity-view');
 
 function applyViewMode() {
-  const showStats = currentFilter === 'stats';
-  if (statsPanelEl) statsPanelEl.hidden = !showStats;
-  if (entriesEl) entriesEl.hidden = showStats;
-  if (emptyEl && showStats) emptyEl.hidden = true;
+  const isSessions = SESSION_FILTERS.has(currentFilter);
+  if (entriesEl) entriesEl.hidden = !isSessions;
+  if (agentsViewEl) agentsViewEl.hidden = currentFilter !== 'agents';
+  if (skillsViewEl) skillsViewEl.hidden = currentFilter !== 'skills';
+  if (activityViewEl) activityViewEl.hidden = currentFilter !== 'activity';
+  if (statsPanelEl) statsPanelEl.hidden = currentFilter !== 'stats';
+  if (emptyEl && !isSessions) emptyEl.hidden = true;
 }
 
 const STATUS_LABEL = {
@@ -56,13 +65,17 @@ filterButtons.forEach((btn) => {
       b.dataset.active = String(b.dataset.filter === currentFilter);
     });
     applyViewMode();
-    if (currentFilter === 'stats') {
-      renderStats();
-    } else {
-      render();
-    }
+    refreshCurrentView();
   });
 });
+
+function refreshCurrentView() {
+  if (currentFilter === 'stats') renderStats();
+  else if (currentFilter === 'agents') renderAgents();
+  else if (currentFilter === 'skills') renderSkills();
+  else if (currentFilter === 'activity') renderActivity();
+  else render();
+}
 
 applyViewMode();
 
@@ -193,9 +206,14 @@ function renderEntry(s, index) {
   const safeSid = escapeHtml(s.sessionId);
   const sidShort = `${escapeHtml(s.sessionId.slice(0, 8))}..${escapeHtml(s.sessionId.slice(-4))}`;
 
-  const currentLine = s.currentTool
-    ? `<p class="entry__current">${subagent ? 'spawning' : 'now'} <strong>${escapeHtml(s.currentTool)}</strong></p>`
-    : '';
+  let currentLine = '';
+  if (s.currentTool) {
+    const verb = subagent ? 'spawning' : s.currentTool === 'Skill' ? 'invoking skill' : 'now';
+    const detail = s.currentToolDetail
+      ? `${escapeHtml(s.currentTool)} <span class="entry__arrow">→</span> <strong>${escapeHtml(s.currentToolDetail)}</strong>`
+      : `<strong>${escapeHtml(s.currentTool)}</strong>`;
+    currentLine = `<p class="entry__current">${verb} ${detail}</p>`;
+  }
 
   return `
     <article class="entry" data-status="${status}" data-session="${safeSid}">
@@ -254,6 +272,7 @@ function sessionSignature(s) {
     s.gitBranch || '',
     s.model || '',
     s.currentTool || '',
+    s.currentToolDetail || '',
     s.toolCount || 0,
     s.tokens?.total || 0,
     s.userMessageCount || 0,
@@ -428,6 +447,166 @@ function renderTop(el, list) {
     .join('');
 }
 
+function fmtAgo(iso) {
+  if (!iso) return '—';
+  const sec = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
+  return `${fmtAge(sec)} ago`;
+}
+
+function fmtAvgDuration(totalMs, n) {
+  if (!n) return '—';
+  const avgSec = Math.floor(totalMs / 1000 / n);
+  return fmtDuration(avgSec);
+}
+
+function renderAgents() {
+  if (!agentsViewEl) return;
+  const list = activity?.agents || [];
+  if (list.length === 0) {
+    agentsViewEl.innerHTML = '<div class="activity__empty">// no subagents in window</div>';
+    return;
+  }
+  agentsViewEl.innerHTML = list.map(renderAgentCard).join('');
+}
+
+function renderAgentCard(a) {
+  const hasActive = a.activeCount > 0;
+  const avg = fmtAvgDuration(a.totalDurationMs, a.completedCount);
+  const parents = (a.parents || [])
+    .slice(0, 5)
+    .map(
+      (p) => `
+        <li>
+          <span class="arrow">↪</span>
+          <span class="name" title="${escapeHtml(p.projectName)}">${escapeHtml(p.projectName)}</span>
+          <span class="count">${p.activeCount > 0 ? `<em>${p.activeCount} live</em>· ` : ''}${p.count}×</span>
+        </li>
+      `,
+    )
+    .join('');
+
+  return `
+    <article class="work-card work-card--agent" data-active="${hasActive}">
+      <header class="work-card__head">
+        <span class="work-card__kind">[ agent ]</span>
+        <span class="work-card__active ${hasActive ? '' : 'zero'}">
+          ${hasActive ? '<span class="dot" aria-hidden="true"></span>' : ''}
+          ${a.activeCount} running
+        </span>
+        <span class="work-card__lastseen">${fmtAgo(a.lastSeen)}</span>
+      </header>
+      <div class="work-card__body">
+        <h2 class="work-card__title">${escapeHtml(a.type)}</h2>
+        <div class="work-card__stats">
+          <div class="stat-cell stat-cell--active">
+            <span class="stat-cell__num ${hasActive ? 'has-active' : ''}">${a.activeCount}</span>
+            <span class="stat-cell__label">active</span>
+          </div>
+          <div class="stat-cell">
+            <span class="stat-cell__num">${a.totalCount}</span>
+            <span class="stat-cell__label">total</span>
+          </div>
+          <div class="stat-cell">
+            <span class="stat-cell__num">${avg}</span>
+            <span class="stat-cell__label">avg time</span>
+          </div>
+        </div>
+        ${
+          parents
+            ? `<div>
+                <p class="work-card__parents-head">parents</p>
+                <ul class="work-card__parents">${parents}</ul>
+              </div>`
+            : ''
+        }
+      </div>
+    </article>
+  `;
+}
+
+function renderSkills() {
+  if (!skillsViewEl) return;
+  const list = activity?.skills || [];
+  if (list.length === 0) {
+    skillsViewEl.innerHTML = '<div class="activity__empty">// no skill invocations in window</div>';
+    return;
+  }
+  skillsViewEl.innerHTML = list.map(renderSkillCard).join('');
+}
+
+function renderSkillCard(sk) {
+  const parents = (sk.parents || [])
+    .slice(0, 5)
+    .map(
+      (p) => `
+        <li>
+          <span class="arrow">↪</span>
+          <span class="name" title="${escapeHtml(p.projectName)}">${escapeHtml(p.projectName)}</span>
+          <span class="count">${p.count}×</span>
+        </li>
+      `,
+    )
+    .join('');
+
+  return `
+    <article class="work-card work-card--skill">
+      <header class="work-card__head">
+        <span class="work-card__kind">[ skill ]</span>
+        <span class="work-card__active zero">
+          ${sk.totalCount} invocations
+        </span>
+        <span class="work-card__lastseen">${fmtAgo(sk.lastSeen)}</span>
+      </header>
+      <div class="work-card__body">
+        <h2 class="work-card__title">${escapeHtml(sk.name)}</h2>
+        ${
+          parents
+            ? `<div>
+                <p class="work-card__parents-head">invoked from</p>
+                <ul class="work-card__parents">${parents}</ul>
+              </div>`
+            : ''
+        }
+      </div>
+    </article>
+  `;
+}
+
+function renderActivity() {
+  if (!activityViewEl) return;
+  const list = activity?.timeline || [];
+  if (list.length === 0) {
+    activityViewEl.innerHTML = '<div class="activity__empty">// no activity in window</div>';
+    return;
+  }
+  activityViewEl.innerHTML = list.map(renderActivityRow).join('');
+}
+
+function renderActivityRow(ev) {
+  const time = new Date(ev.timestamp).toLocaleTimeString('en-GB', { hour12: false });
+  const kind = ev.kind === 'agent' ? 'agent' : 'skill';
+  let status = '';
+  if (ev.kind === 'agent') {
+    if (ev.completed) {
+      const dur = ev.durationMs ? ` ${fmtDuration(Math.floor(ev.durationMs / 1000))}` : '';
+      status = `<span class="activity__status done">✓ done${dur}</span>`;
+    } else {
+      status = `<span class="activity__status running">● running</span>`;
+    }
+  } else {
+    status = `<span class="activity__status">invoked</span>`;
+  }
+  return `
+    <div class="activity__row" data-kind="${kind}">
+      <span class="activity__time">${time}</span>
+      <span class="activity__kind">${kind}</span>
+      <span class="activity__name" title="${escapeHtml(ev.name)}">${escapeHtml(ev.name)}</span>
+      ${status}
+      <span class="activity__parent" title="${escapeHtml(ev.projectName)}">${escapeHtml(ev.projectName)}</span>
+    </div>
+  `;
+}
+
 function flashEntry(sessionId) {
   const el = grid.querySelector(`[data-session="${CSS.escape(sessionId)}"]`);
   if (!el) return;
@@ -467,8 +646,12 @@ function connect() {
       sessions = new Map((msg.sessions || []).map((s) => [s.sessionId, s]));
       processes = msg.processes || [];
       if (msg.stats) stats = msg.stats;
+      if (msg.activity) activity = msg.activity;
       render();
       renderStats();
+      renderAgents();
+      renderSkills();
+      renderActivity();
     } else if (msg.type === 'session-update') {
       sessions.set(msg.session.sessionId, msg.session);
       render();

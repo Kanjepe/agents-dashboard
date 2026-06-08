@@ -1,83 +1,171 @@
 <!doctype html>
-<html lang="lv">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>TWINO Agents Dashboard</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>agent-telemetry ── live session monitor</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
     <link rel="stylesheet" href="/style.css" />
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            colors: {
-              ink: { 950: '#0a0a0b', 900: '#111114', 800: '#1a1a1f', 700: '#26262d' },
-              accent: { DEFAULT: '#7AB648', soft: '#9fd16b' },
-              alert: '#ff5c7c',
-              warn: '#f4b350',
-              muted: '#8c8c98',
-            },
-            fontFamily: {
-              mono: ['JetBrains Mono', 'Cascadia Code', 'Consolas', 'monospace'],
-              sans: ['Inter', 'system-ui', 'sans-serif'],
-            },
-          },
-        },
-      };
-    </script>
   </head>
-  <body class="bg-ink-950 text-slate-100 font-sans antialiased min-h-screen">
-    <div class="max-w-[1600px] mx-auto px-6 py-6">
-      <header class="flex items-center justify-between mb-6">
-        <div>
-          <h1 class="text-2xl font-semibold tracking-tight">
-            TWINO <span class="text-accent">Agents</span>
-          </h1>
-          <p class="text-sm text-muted mt-0.5" id="subtitle">
-            Live Claude Code session monitor
-          </p>
+  <body>
+    <div class="scanlines" aria-hidden="true"></div>
+    <div class="vignette" aria-hidden="true"></div>
+
+    <main class="term">
+      <header class="hdr">
+        <div class="hdr__bar">
+          <span class="hdr__title">
+            <span class="hdr__prompt">$</span> agent-telemetry
+            <span class="hdr__cursor" aria-hidden="true">█</span>
+          </span>
+          <span class="hdr__sep" aria-hidden="true"></span>
+          <span class="hdr__meta">
+            <span class="hdr__date" id="today-date">----.--.--</span>
+            <span class="hdr__dot">·</span>
+            <span class="hdr__clock" id="last-update">--:--:--</span>
+            <span class="hdr__dot">·</span>
+            <span class="hdr__conn">
+              <span id="conn-dot" class="conn-dot" data-state="connecting" aria-hidden="true"></span>
+              <span id="conn-text">connecting</span>
+            </span>
+          </span>
         </div>
-        <div class="flex items-center gap-6">
-          <div class="flex items-center gap-2 text-sm">
-            <span id="conn-dot" class="w-2 h-2 rounded-full bg-warn animate-pulse"></span>
-            <span id="conn-text" class="text-muted">connecting…</span>
-          </div>
-          <div class="flex items-center gap-4 text-xs font-mono text-muted">
-            <span title="claude processes detected via OS"><span class="text-accent">⬢</span> <span id="count-processes">0</span> procs</span>
-            <span class="text-slate-600">|</span>
-            <span><span class="text-accent">●</span> <span id="count-live">0</span> live</span>
-            <span><span class="text-warn">●</span> <span id="count-waiting">0</span> waiting</span>
-            <span><span class="text-slate-500">●</span> <span id="count-paused">0</span> paused</span>
-          </div>
-        </div>
+        <p class="hdr__subtitle">
+          // live observation of claude-code sessions ·
+          <code>~/.claude/projects/</code>
+          ·
+          <span class="hdr__today">
+            today: <strong id="today-tokens">--</strong>
+            <span class="hdr__today-label">tokens</span>
+          </span>
+        </p>
       </header>
 
-      <div class="flex items-center gap-3 mb-4 text-xs">
-        <button data-filter="live" class="filter-btn px-3 py-1.5 rounded-md bg-accent text-ink-950 font-medium transition">
-          Live (&lt;2 min)
-        </button>
-        <button data-filter="waiting" class="filter-btn px-3 py-1.5 rounded-md bg-ink-800 hover:bg-ink-700 transition">
-          Waiting
-        </button>
-        <button data-filter="paused" class="filter-btn px-3 py-1.5 rounded-md bg-ink-800 hover:bg-ink-700 transition">
-          Paused (&lt;30 min)
-        </button>
-        <button data-filter="all" class="filter-btn px-3 py-1.5 rounded-md bg-ink-800 hover:bg-ink-700 transition">
-          All visible
-        </button>
-        <div class="flex-1"></div>
-        <span class="text-muted font-mono" id="last-update">—</span>
-      </div>
+      <section class="stats" aria-label="Telemetry summary">
+        <div class="stat stat--proc">
+          <span class="stat__label">procs</span>
+          <span class="stat__val">[<span id="count-processes">0</span>]</span>
+        </div>
+        <div class="stat stat--live">
+          <span class="stat__label">live</span>
+          <span class="stat__val">[<span id="count-live">0</span>]</span>
+        </div>
+        <div class="stat stat--waiting">
+          <span class="stat__label">waiting</span>
+          <span class="stat__val">[<span id="count-waiting">0</span>]</span>
+        </div>
+        <div class="stat stat--paused">
+          <span class="stat__label">paused</span>
+          <span class="stat__val">[<span id="count-paused">0</span>]</span>
+        </div>
+      </section>
 
-      <main
-        id="grid"
-        class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
-      ></main>
+      <nav class="filters" aria-label="View / Filter">
+        <button class="filter" data-filter="live" data-active="true">
+          <span class="filter__mark">▸</span> live
+        </button>
+        <button class="filter" data-filter="waiting">
+          <span class="filter__mark">▸</span> waiting
+        </button>
+        <button class="filter" data-filter="paused">
+          <span class="filter__mark">▸</span> paused
+        </button>
+        <button class="filter" data-filter="all">
+          <span class="filter__mark">▸</span> all
+        </button>
+        <span class="filter__divider" aria-hidden="true">|</span>
+        <button class="filter filter--alt" data-filter="stats">
+          <span class="filter__mark">▸</span> stats
+        </button>
+      </nav>
 
-      <p id="empty" class="hidden text-center text-muted py-16">
-        No live sessions. Start Claude Code, and they will appear here.
+      <section id="grid" class="entries" aria-label="Sessions"></section>
+
+      <p id="empty" class="empty" hidden>
+        <span class="empty__bracket">[</span>
+        no live transmissions
+        <span class="empty__bracket">]</span>
+        <br />
+        <span class="empty__hint">// start a claude session and it will appear here</span>
       </p>
-    </div>
+
+      <section class="stats-panel" aria-label="Token statistics">
+        <h2 class="stats-panel__head">
+          <span class="stats-panel__rule">══</span>
+          <span class="stats-panel__title">token statistics</span>
+          <span class="stats-panel__rule stats-panel__rule--fill"></span>
+          <span class="stats-panel__meta" id="stats-meta">scanning</span>
+        </h2>
+
+        <div class="totals">
+          <article class="total">
+            <header class="total__head">
+              <span class="total__label">today</span>
+              <span class="total__num"><span id="total-today">--</span></span>
+            </header>
+            <div class="total__bar" aria-hidden="true">
+              <span class="total__fill" id="total-today-bar" style="width: 0%"></span>
+            </div>
+            <span class="total__hint" id="total-today-date">--</span>
+          </article>
+
+          <article class="total">
+            <header class="total__head">
+              <span class="total__label">this week</span>
+              <span class="total__num"><span id="total-week">--</span></span>
+            </header>
+            <div class="total__bar" aria-hidden="true">
+              <span class="total__fill" id="total-week-bar" style="width: 0%"></span>
+            </div>
+            <span class="total__hint" id="total-week-hint">from --</span>
+          </article>
+
+          <article class="total">
+            <header class="total__head">
+              <span class="total__label">this month</span>
+              <span class="total__num"><span id="total-month">--</span></span>
+            </header>
+            <div class="total__bar" aria-hidden="true">
+              <span class="total__fill" id="total-month-bar" style="width: 0%"></span>
+            </div>
+            <span class="total__hint" id="total-month-hint">from --</span>
+          </article>
+        </div>
+
+        <div class="chart-wrap">
+          <h3 class="sec-head">▸ last 7 days</h3>
+          <div class="chart7" id="chart7" role="img" aria-label="Daily token consumption for the last 7 days"></div>
+        </div>
+
+        <div class="tops">
+          <div class="top">
+            <h3 class="sec-head">▸ top · today</h3>
+            <ol class="top__list" id="top-today"></ol>
+          </div>
+          <div class="top">
+            <h3 class="sec-head">▸ top · week</h3>
+            <ol class="top__list" id="top-week"></ol>
+          </div>
+          <div class="top">
+            <h3 class="sec-head">▸ top · month</h3>
+            <ol class="top__list" id="top-month"></ol>
+          </div>
+        </div>
+      </section>
+
+      <footer class="ftr">
+        <span class="ftr__line">────────────────────────────────────────────────────────────────────</span>
+        <p>
+          window: <strong>last 30 min</strong> · older sessions filtered ·
+          source: <code>~/.claude/projects/*.jsonl</code>
+        </p>
+      </footer>
+    </main>
 
     <script type="module" src="/app.js"></script>
   </body>

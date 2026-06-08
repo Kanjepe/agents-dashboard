@@ -6,13 +6,15 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { scanAllSessions, loadSession, getProjectsDir } from './lib/sessions.js';
 import { detectClaudeProcesses } from './lib/processes.js';
+import { aggregateStats, invalidateStatsCache } from './lib/stats.js';
 
 async function buildSnapshot() {
-  const [sessions, processes] = await Promise.all([
+  const [sessions, processes, stats] = await Promise.all([
     scanAllSessions(),
     detectClaudeProcesses(),
+    aggregateStats(),
   ]);
-  return { sessions, processes, scannedAt: new Date().toISOString() };
+  return { sessions, processes, stats, scannedAt: new Date().toISOString() };
 }
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -98,8 +100,13 @@ const watcher = chokidar.watch(`${projectsDir.replace(/\\/g, '/')}/**/*.jsonl`, 
   awaitWriteFinish: { stabilityThreshold: 200, pollInterval: 100 },
 });
 
-watcher.on('add', scheduleRefresh);
-watcher.on('change', scheduleRefresh);
+function onJsonlChange(filePath) {
+  invalidateStatsCache();
+  scheduleRefresh(filePath);
+}
+
+watcher.on('add', onJsonlChange);
+watcher.on('change', onJsonlChange);
 watcher.on('error', (err) => console.error('[watch] error:', err.message));
 
 server.listen(PORT, () => {

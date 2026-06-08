@@ -5,6 +5,15 @@ import chokidar from 'chokidar';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { scanAllSessions, loadSession, getProjectsDir } from './lib/sessions.js';
+import { detectClaudeProcesses } from './lib/processes.js';
+
+async function buildSnapshot() {
+  const [sessions, processes] = await Promise.all([
+    scanAllSessions(),
+    detectClaudeProcesses(),
+  ]);
+  return { sessions, processes, scannedAt: new Date().toISOString() };
+}
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 4173;
@@ -14,8 +23,7 @@ app.use(express.static(join(__dirname, 'public')));
 
 app.get('/api/sessions', async (req, res) => {
   try {
-    const sessions = await scanAllSessions();
-    res.json({ sessions, scannedAt: new Date().toISOString() });
+    res.json(await buildSnapshot());
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -34,11 +42,11 @@ wss.on('connection', (ws) => {
   clients.add(ws);
   ws.on('close', () => clients.delete(ws));
 
-  scanAllSessions()
-    .then((sessions) => {
-      ws.send(JSON.stringify({ type: 'snapshot', sessions }));
+  buildSnapshot()
+    .then((snap) => {
+      ws.send(JSON.stringify({ type: 'snapshot', ...snap }));
     })
-    .catch((err) => console.error('[ws] initial scan failed:', err.message));
+    .catch((err) => console.error('[ws] initial snapshot failed:', err.message));
 });
 
 function broadcast(payload) {
@@ -77,8 +85,8 @@ function scheduleRefresh(filePath) {
 const PERIODIC_REFRESH_MS = 5000;
 setInterval(async () => {
   try {
-    const sessions = await scanAllSessions();
-    broadcast({ type: 'snapshot', sessions });
+    const snap = await buildSnapshot();
+    broadcast({ type: 'snapshot', ...snap });
   } catch (err) {
     console.error('[periodic] scan failed:', err.message);
   }

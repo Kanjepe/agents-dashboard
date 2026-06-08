@@ -34,7 +34,7 @@
             TWINO <span class="text-accent">Agents</span>
           </h1>
           <p class="text-sm text-muted mt-0.5" id="subtitle">
-            Lokāls Claude Code sesiju monitors
+            Live Claude Code session monitor
           </p>
         </div>
         <div class="flex items-center gap-6">
@@ -43,30 +43,27 @@
             <span id="conn-text" class="text-muted">connecting…</span>
           </div>
           <div class="flex items-center gap-4 text-xs font-mono text-muted">
-            <span><span class="text-accent">●</span> <span id="count-active">0</span> active</span>
-            <span><span class="text-warn">●</span> <span id="count-waiting">0</span> waiting</span>
-            <span><span class="text-slate-500">●</span> <span id="count-idle">0</span> idle</span>
+            <span title="claude processes detected via OS"><span class="text-accent">⬢</span> <span id="count-processes">0</span> procs</span>
             <span class="text-slate-600">|</span>
-            <span id="count-total">0</span> total
+            <span><span class="text-accent">●</span> <span id="count-live">0</span> live</span>
+            <span><span class="text-warn">●</span> <span id="count-waiting">0</span> waiting</span>
+            <span><span class="text-slate-500">●</span> <span id="count-paused">0</span> paused</span>
           </div>
         </div>
       </header>
 
       <div class="flex items-center gap-3 mb-4 text-xs">
-        <button data-filter="active" class="filter-btn px-3 py-1.5 rounded-md bg-ink-800 hover:bg-ink-700 transition">
-          Active
+        <button data-filter="live" class="filter-btn px-3 py-1.5 rounded-md bg-accent text-ink-950 font-medium transition">
+          Live (&lt;2 min)
         </button>
         <button data-filter="waiting" class="filter-btn px-3 py-1.5 rounded-md bg-ink-800 hover:bg-ink-700 transition">
           Waiting
         </button>
-        <button data-filter="recent" class="filter-btn px-3 py-1.5 rounded-md bg-ink-800 hover:bg-ink-700 transition">
-          Recent
+        <button data-filter="paused" class="filter-btn px-3 py-1.5 rounded-md bg-ink-800 hover:bg-ink-700 transition">
+          Paused (&lt;30 min)
         </button>
-        <button data-filter="idle" class="filter-btn px-3 py-1.5 rounded-md bg-ink-800 hover:bg-ink-700 transition">
-          Idle
-        </button>
-        <button data-filter="all" class="filter-btn px-3 py-1.5 rounded-md bg-accent text-ink-950 font-medium transition">
-          All
+        <button data-filter="all" class="filter-btn px-3 py-1.5 rounded-md bg-ink-800 hover:bg-ink-700 transition">
+          All visible
         </button>
         <div class="flex-1"></div>
         <span class="text-muted font-mono" id="last-update">—</span>
@@ -78,7 +75,7 @@
       ></main>
 
       <p id="empty" class="hidden text-center text-muted py-16">
-        Nav atrastu sesiju. Sāc Claude Code, un te tās parādīsies.
+        No live sessions. Start Claude Code, and they will appear here.
       </p>
     </div>
 

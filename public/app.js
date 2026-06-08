@@ -3,14 +3,15 @@ const emptyEl = document.getElementById('empty');
 const connDot = document.getElementById('conn-dot');
 const connText = document.getElementById('conn-text');
 const lastUpdateEl = document.getElementById('last-update');
-const countActive = document.getElementById('count-active');
+const countProcesses = document.getElementById('count-processes');
+const countLive = document.getElementById('count-live');
 const countWaiting = document.getElementById('count-waiting');
-const countIdle = document.getElementById('count-idle');
-const countTotal = document.getElementById('count-total');
+const countPaused = document.getElementById('count-paused');
 const filterButtons = document.querySelectorAll('.filter-btn');
 
 let sessions = new Map();
-let currentFilter = 'all';
+let processes = [];
+let currentFilter = 'live';
 
 filterButtons.forEach((btn) => {
   btn.addEventListener('click', () => {
@@ -30,7 +31,7 @@ filterButtons.forEach((btn) => {
   });
 });
 
-document.querySelector('.filter-btn[data-filter="all"]').dataset.active = 'true';
+document.querySelector('.filter-btn[data-filter="live"]').dataset.active = 'true';
 
 function fmtAge(seconds) {
   if (seconds < 60) return `${seconds}s`;
@@ -120,7 +121,7 @@ function renderCard(s) {
         <span>·</span>
         <span title="duration">${fmtDuration(s.durationSeconds)}</span>
         <span>·</span>
-        <span title="last activity" class="${status === 'active' ? 'text-accent' : ''}">${fmtAge(s.ageSeconds)} ago</span>
+        <span title="last activity" class="${status === 'live' ? 'text-accent' : ''}">${fmtAge(s.ageSeconds)} ago</span>
         ${branch ? `<span>·</span>${branch}` : ''}
       </div>
 
@@ -170,9 +171,9 @@ function escapeHtml(s) {
 
 function statusOrder(status) {
   switch (status) {
-    case 'active': return 0;
+    case 'live': return 0;
     case 'waiting': return 1;
-    case 'recent': return 2;
+    case 'paused': return 2;
     case 'idle': return 3;
     default: return 4;
   }
@@ -180,9 +181,6 @@ function statusOrder(status) {
 
 function matchesFilter(session) {
   if (currentFilter === 'all') return true;
-  if (currentFilter === 'idle') {
-    return session.status === 'idle' || session.status === 'recent';
-  }
   return session.status === currentFilter;
 }
 
@@ -204,16 +202,16 @@ function render() {
     grid.innerHTML = visible.map(renderCard).join('');
   }
 
-  let active = 0, waiting = 0, idle = 0;
+  let live = 0, waiting = 0, paused = 0;
   for (const s of all) {
-    if (s.status === 'active') active += 1;
+    if (s.status === 'live') live += 1;
     else if (s.status === 'waiting') waiting += 1;
-    else idle += 1;
+    else if (s.status === 'paused') paused += 1;
   }
-  countActive.textContent = active;
+  countLive.textContent = live;
   countWaiting.textContent = waiting;
-  countIdle.textContent = idle;
-  countTotal.textContent = all.length;
+  countPaused.textContent = paused;
+  countProcesses.textContent = processes.length;
   lastUpdateEl.textContent = new Date().toLocaleTimeString('lv-LV');
 }
 
@@ -252,7 +250,8 @@ function connect() {
       return;
     }
     if (msg.type === 'snapshot') {
-      sessions = new Map(msg.sessions.map((s) => [s.sessionId, s]));
+      sessions = new Map((msg.sessions || []).map((s) => [s.sessionId, s]));
+      processes = msg.processes || [];
       render();
     } else if (msg.type === 'session-update') {
       sessions.set(msg.session.sessionId, msg.session);

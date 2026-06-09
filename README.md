@@ -301,18 +301,52 @@ sudo systemctl start agents-dashboard
 
 ## Configuration
 
-All configurable values live as constants at the top of source files:
+### Environment variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `PORT` | `4173` | HTTP/WebSocket port the server binds to |
+| `HOST` | `127.0.0.1` | Bind address. Set to `0.0.0.0` only if you intentionally want LAN access (there is no auth) |
+| `PROJECTS_ROOT` | `~/Projects` | Root folder where the dashboard looks for per-project `.claude/skills/` and `.claude/agents/`. Override if your code lives elsewhere — see [Projects tab](#projects-tab) below |
+| `PROJECTS_SCAN_DEPTH` | `6` | How many folders deep to recurse under `PROJECTS_ROOT` looking for `.claude/` directories |
+
+Examples:
+
+```bash
+# macOS / Linux — code lives in ~/Code
+PROJECTS_ROOT=~/Code npm start
+
+# Windows PowerShell — code lives in D:\repos
+$env:PROJECTS_ROOT = "D:\repos"; npm start
+
+# Allow LAN access on a custom port (be aware: no auth)
+HOST=0.0.0.0 PORT=8080 npm start
+```
+
+### Projects tab
+
+The dashboard distinguishes three kinds of skills/agents:
+
+- **Global skills** in `~/.claude/skills/` — available from any project
+- **Global subagents** in `~/.claude/agents/<domain>/` — available from any project
+- **Project-scoped** in `<your-project>/.claude/skills/` and `<your-project>/.claude/agents/` — only active when Claude Code is running from that folder
+
+The `▸ projects` tab in the dashboard lists the third group, grouped by project. **For it to find your project-scoped files**, the dashboard needs to know where your code lives. The default `~/Projects/` works for some setups but not all — set `PROJECTS_ROOT` to your actual code root (e.g. `~/Code`, `~/dev`, `~/Documents/GitHub`, `D:\repos`).
+
+If `PROJECTS_ROOT` doesn't exist or has no `.claude/` folders, the tab will simply be empty — there is no error.
+
+### Tuning constants
+
+These are constants in the source files (not env vars). Edit and restart to change:
 
 | Setting | File | Default | Description |
 |---|---|---|---|
-| `PORT` | `server.js` (env var) | `4173` | HTTP/WebSocket port |
-| `ACTIVE_WINDOW_MS` | `lib/sessions.js` | `30_000` | How recent counts as "active" |
-| `STALE_WINDOW_MS` | `lib/sessions.js` | `300_000` | "recent" vs "idle" threshold |
-| `FULL_PARSE_WINDOW_MS` | `lib/sessions.js` | `24h` | Older sessions return stubs |
-| `SHOW_WINDOW_MS` | `lib/sessions.js` | `7 days` | Older files are hidden |
+| `LIVE_WINDOW_MS` | `lib/sessions.js` | `2 min` | How recent counts as "live" |
+| `PAUSED_WINDOW_MS` | `lib/sessions.js` | `30 min` | "Paused" vs "idle" threshold; also hides anything older than this |
 | `TOOL_HISTORY_LIMIT` | `lib/sessions.js` | `50` | Max tool events kept per card |
 | `PERIODIC_REFRESH_MS` | `server.js` | `5000` | Periodic full re-scan interval |
 | `REFRESH_DEBOUNCE_MS` | `server.js` | `400` | Debounce window for file events |
+| `USAGE_LOOKBACK_DAYS` | `lib/registry.js` | `35` | How many days back to scan for skill/agent usage stats |
 
 To override the port without editing code:
 

@@ -5,6 +5,134 @@ import chokidar from 'chokidar';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { scanAllSessions, loadSession, getProjectsDir } from './lib/sessions.js';
+import { detectClaudeProcesses } from './lib/processes.js';
+import { aggregateStats, invalidateStatsCache } from './lib/stats.js';
+import { getRegistry, getSkillDetail, getAgentDetail } from './lib/registry.js';
+
+function aggregateActivity(sessions) {
+  const agentsByType = new Map();
+  const skillsByName = new Map();
+  const timeline = [];
+
+  for (const s of sessions) {
+    const parentName = s.projectName || 'unknown';
+
+    for (const sub of s.subagents || []) {
+      let bucket = agentsByType.get(sub.type);
+      if (!bucket) {
+        bucket = {
+          type: sub.type,
+          activeCount: 0,
+          totalCount: 0,
+          totalDurationMs: 0,
+          completedCount: 0,
+          parents: new Map(),
+          history: [],
+          lastSeen: '',
+        };
+        agentsByType.set(sub.type, bucket);
+      }
+      bucket.totalCount += 1;
+      if (!sub.completed) bucket.activeCount += 1;
+      if (sub.completed && sub.durationMs != null) {
+        bucket.totalDurationMs += sub.durationMs;
+        bucket.completedCount += 1;
+      }
+      bucket.history.push({ t: sub.timestamp });
+      if (!bucket.lastSeen || sub.timestamp > bucket.lastSeen) {
+        bucket.lastSeen = sub.timestamp;
+      }
+
+      let parent = bucket.parents.get(s.sessionId);
+      if (!parent) {
+        parent = { sessionId: s.sessionId, projectName: parentName, count: 0, activeCount: 0 };
+        bucket.parents.set(s.sessionId, parent);
+      }
+      parent.count += 1;
+      if (!sub.completed) parent.activeCount += 1;
+
+      timeline.push({
+        kind: 'agent',
+        timestamp: sub.timestamp,
+        name: sub.type,
+        description: sub.description,
+        completed: sub.completed,
+        durationMs: sub.durationMs,
+        sessionId: s.sessionId,
+        projectName: parentName,
+      });
+    }
+
+    for (const sk of s.skills || []) {
+      let bucket = skillsByName.get(sk.name);
+      if (!bucket) {
+        bucket = {
+          name: sk.name,
+          totalCount: 0,
+          parents: new Map(),
+          history: [],
+          lastSeen: '',
+        };
+        skillsByName.set(sk.name, bucket);
+      }
+      bucket.totalCount += 1;
+      bucket.history.push({ t: sk.timestamp });
+      if (!bucket.lastSeen || sk.timestamp > bucket.lastSeen) {
+        bucket.lastSeen = sk.timestamp;
+      }
+
+      let parent = bucket.parents.get(s.sessionId);
+      if (!parent) {
+        parent = { sessionId: s.sessionId, projectName: parentName, count: 0 };
+        bucket.parents.set(s.sessionId, parent);
+      }
+      parent.count += 1;
+
+      timeline.push({
+        kind: 'skill',
+        timestamp: sk.timestamp,
+        name: sk.name,
+        sessionId: s.sessionId,
+        projectName: parentName,
+      });
+    }
+  }
+
+  timeline.sort((a, b) => (a.timestamp < b.timestamp ? 1 : -1));
+
+  const finalize = (bucket) => ({
+    ...bucket,
+    parents: Array.from(bucket.parents.values()).sort((a, b) => b.count - a.count),
+  });
+
+  return {
+    agents: Array.from(agentsByType.values())
+      .map(finalize)
+      .sort((a, b) => b.activeCount - a.activeCount || (a.lastSeen < b.lastSeen ? 1 : -1)),
+    skills: Array.from(skillsByName.values())
+      .map(finalize)
+      .sort((a, b) => (a.lastSeen < b.lastSeen ? 1 : -1)),
+    timeline: timeline.slice(0, 120),
+  };
+}
+
+async function buildSnapshot() {
+  const [sessions, processes, stats, registry] = await Promise.all([
+    scanAllSessions(),
+    detectClaudeProcesses(),
+    aggregateStats(),
+    getRegistry(),
+  ]);
+  const activity = aggregateActivity(sessions);
+  return {
+    sessions,
+    processes,
+    stats,
+    activity,
+    registry,
+    scannedAt: new Date().toISOString(),
+  };
+}
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 4173;
@@ -14,8 +142,7 @@ app.use(express.static(join(__dirname, 'public')));
 
 app.get('/api/sessions', async (req, res) => {
   try {
-    const sessions = await scanAllSessions();
-    res.json({ sessions, scannedAt: new Date().toISOString() });
+    res.json(await buildSnapshot());
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -23,6 +150,26 @@ app.get('/api/sessions', async (req, res) => {
 
 app.get('/api/health', (req, res) => {
   res.json({ ok: true, projectsDir: getProjectsDir() });
+});
+
+const SAFE_NAME_RE = /^[a-z0-9][a-z0-9_-]*$/i;
+
+app.get('/api/skill/:slug', async (req, res) => {
+  if (!SAFE_NAME_RE.test(req.params.slug)) {
+    return res.status(400).json({ error: 'invalid slug' });
+  }
+  const detail = await getSkillDetail(req.params.slug);
+  if (!detail) return res.status(404).json({ error: 'not found' });
+  res.json(detail);
+});
+
+app.get('/api/agent/:domain/:slug', async (req, res) => {
+  if (!SAFE_NAME_RE.test(req.params.domain) || !SAFE_NAME_RE.test(req.params.slug)) {
+    return res.status(400).json({ error: 'invalid name' });
+  }
+  const detail = await getAgentDetail(req.params.domain, req.params.slug);
+  if (!detail) return res.status(404).json({ error: 'not found' });
+  res.json(detail);
 });
 
 const server = createServer(app);
@@ -34,11 +181,11 @@ wss.on('connection', (ws) => {
   clients.add(ws);
   ws.on('close', () => clients.delete(ws));
 
-  scanAllSessions()
-    .then((sessions) => {
-      ws.send(JSON.stringify({ type: 'snapshot', sessions }));
+  buildSnapshot()
+    .then((snap) => {
+      ws.send(JSON.stringify({ type: 'snapshot', ...snap }));
     })
-    .catch((err) => console.error('[ws] initial scan failed:', err.message));
+    .catch((err) => console.error('[ws] initial snapshot failed:', err.message));
 });
 
 function broadcast(payload) {
@@ -77,8 +224,8 @@ function scheduleRefresh(filePath) {
 const PERIODIC_REFRESH_MS = 5000;
 setInterval(async () => {
   try {
-    const sessions = await scanAllSessions();
-    broadcast({ type: 'snapshot', sessions });
+    const snap = await buildSnapshot();
+    broadcast({ type: 'snapshot', ...snap });
   } catch (err) {
     console.error('[periodic] scan failed:', err.message);
   }
@@ -90,12 +237,17 @@ const watcher = chokidar.watch(`${projectsDir.replace(/\\/g, '/')}/**/*.jsonl`, 
   awaitWriteFinish: { stabilityThreshold: 200, pollInterval: 100 },
 });
 
-watcher.on('add', scheduleRefresh);
-watcher.on('change', scheduleRefresh);
+function onJsonlChange(filePath) {
+  invalidateStatsCache();
+  scheduleRefresh(filePath);
+}
+
+watcher.on('add', onJsonlChange);
+watcher.on('change', onJsonlChange);
 watcher.on('error', (err) => console.error('[watch] error:', err.message));
 
 server.listen(PORT, () => {
-  console.log(`\n  TWINO Agents Dashboard`);
+  console.log(`\n  Agents Dashboard`);
   console.log(`  ─────────────────────────`);
   console.log(`  Watching: ${projectsDir}`);
   console.log(`  Open:     http://localhost:${PORT}\n`);

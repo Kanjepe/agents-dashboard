@@ -5,3 +5,6 @@ node_modules/
 .DS_Store
 Thumbs.db
 .vscode/
+.server-pid.txt
+.commit-msg*.txt
+.pr-body*.txt

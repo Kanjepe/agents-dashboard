@@ -152,13 +152,21 @@ app.get('/api/health', (req, res) => {
   res.json({ ok: true, projectsDir: getProjectsDir() });
 });
 
+const SAFE_NAME_RE = /^[a-z0-9][a-z0-9_-]*$/i;
+
 app.get('/api/skill/:slug', async (req, res) => {
+  if (!SAFE_NAME_RE.test(req.params.slug)) {
+    return res.status(400).json({ error: 'invalid slug' });
+  }
   const detail = await getSkillDetail(req.params.slug);
   if (!detail) return res.status(404).json({ error: 'not found' });
   res.json(detail);
 });
 
 app.get('/api/agent/:domain/:slug', async (req, res) => {
+  if (!SAFE_NAME_RE.test(req.params.domain) || !SAFE_NAME_RE.test(req.params.slug)) {
+    return res.status(400).json({ error: 'invalid name' });
+  }
   const detail = await getAgentDetail(req.params.domain, req.params.slug);
   if (!detail) return res.status(404).json({ error: 'not found' });
   res.json(detail);

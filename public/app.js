@@ -30,8 +30,26 @@ let sessions = new Map();
 let processes = [];
 let stats = null;
 let activity = { agents: [], skills: [], timeline: [] };
+let registry = { skills: [], agents: [], skillGroups: [], agentDomains: [] };
+let agentsSearch = '';
+let skillsSearch = '';
+let agentsDomain = 'all';
+let skillsGroup = 'all';
 let currentFilter = 'live';
 const entryEls = new Map();
+const detailCache = new Map();
+
+let _lastAgentsRenderKey = '';
+let _lastSkillsRenderKey = '';
+
+function registryHash(list) {
+  if (!list || list.length === 0) return '0';
+  let h = `${list.length}`;
+  for (const item of list) {
+    h += `|${item.slug}:${item.usage?.thisMonth || 0}:${item.usage?.lastUsed || ''}`;
+  }
+  return h;
+}
 
 const SESSION_FILTERS = new Set(['live', 'waiting', 'paused', 'all']);
 
@@ -39,13 +57,18 @@ const statsPanelEl = document.querySelector('.stats-panel');
 const entriesEl = document.getElementById('grid');
 const agentsViewEl = document.getElementById('agents-view');
 const skillsViewEl = document.getElementById('skills-view');
+const projectsViewEl = document.getElementById('projects-view');
 const activityViewEl = document.getElementById('activity-view');
+
+let projectsSearch = '';
+let _lastProjectsRenderKey = '';
 
 function applyViewMode() {
   const isSessions = SESSION_FILTERS.has(currentFilter);
   if (entriesEl) entriesEl.hidden = !isSessions;
   if (agentsViewEl) agentsViewEl.hidden = currentFilter !== 'agents';
   if (skillsViewEl) skillsViewEl.hidden = currentFilter !== 'skills';
+  if (projectsViewEl) projectsViewEl.hidden = currentFilter !== 'projects';
   if (activityViewEl) activityViewEl.hidden = currentFilter !== 'activity';
   if (statsPanelEl) statsPanelEl.hidden = currentFilter !== 'stats';
   if (emptyEl && !isSessions) emptyEl.hidden = true;
@@ -73,6 +96,7 @@ function refreshCurrentView() {
   if (currentFilter === 'stats') renderStats();
   else if (currentFilter === 'agents') renderAgents();
   else if (currentFilter === 'skills') renderSkills();
+  else if (currentFilter === 'projects') renderProjects();
   else if (currentFilter === 'activity') renderActivity();
   else render();
 }
@@ -186,6 +210,65 @@ function matchesFilter(session) {
   return session.status === currentFilter;
 }
 
+const RECENT_SKILL_WINDOW_MS = 60 * 1000;
+
+function liveWorkItems() {
+  if (currentFilter !== 'live' && currentFilter !== 'all') return [];
+  const items = [];
+  const tl = activity?.timeline || [];
+  const now = Date.now();
+  for (const ev of tl) {
+    const ts = new Date(ev.timestamp).getTime();
+    if (ev.kind === 'agent' && !ev.completed) {
+      items.push({ kind: 'agent', ev, ts });
+    } else if (ev.kind === 'skill' && now - ts < RECENT_SKILL_WINDOW_MS) {
+      items.push({ kind: 'skill', ev, ts });
+    }
+  }
+  return items;
+}
+
+function renderLiveCard(item) {
+  const ev = item.ev;
+  const ageSec = Math.max(0, Math.floor((Date.now() - item.ts) / 1000));
+  if (item.kind === 'agent') {
+    const desc = ev.description ? `<p class="live-card__desc">${escapeHtml(ev.description)}</p>` : '';
+    return `
+      <article class="live-card live-card--agent" data-kind="agent">
+        <header class="live-card__head">
+          <span class="live-card__kind">[ subagent ]</span>
+          <span class="live-card__status">
+            <span class="live-card__dot" aria-hidden="true"></span>
+            running
+          </span>
+          <span class="live-card__time">${fmtAge(ageSec)} ago</span>
+        </header>
+        <div class="live-card__body">
+          <h3 class="live-card__title">${escapeHtml(ev.name)}</h3>
+          ${desc}
+          <p class="live-card__parent">↪ from: <strong>${escapeHtml(ev.projectName)}</strong></p>
+        </div>
+      </article>
+    `;
+  }
+  return `
+    <article class="live-card live-card--skill" data-kind="skill">
+      <header class="live-card__head">
+        <span class="live-card__kind">[ skill ]</span>
+        <span class="live-card__status">
+          <span class="live-card__dot" aria-hidden="true"></span>
+          just invoked
+        </span>
+        <span class="live-card__time">${fmtAge(ageSec)} ago</span>
+      </header>
+      <div class="live-card__body">
+        <h3 class="live-card__title">${escapeHtml(ev.name)}</h3>
+        <p class="live-card__parent">↪ from: <strong>${escapeHtml(ev.projectName)}</strong></p>
+      </div>
+    </article>
+  `;
+}
+
 function renderEntry(s, index) {
   const status = s.status || 'idle';
   const num = String(index + 1).padStart(2, '0');
@@ -227,7 +310,12 @@ function renderEntry(s, index) {
       </header>
 
       <div class="entry__body">
-        <h2 class="entry__title">${escapeHtml(s.projectName)}</h2>
+        <h2 class="entry__title">
+          ${s.isObserver
+            ? `<span class="entry__obs-prefix">obs/</span>${escapeHtml(s.projectName.replace(/^obs\//, ''))}`
+            : escapeHtml(s.projectName)
+          }
+        </h2>
         ${s.title ? `<p class="entry__subtitle">${escapeHtml(s.title)}</p>` : ''}
 
         <div class="entry__meta">
@@ -269,6 +357,7 @@ function sessionSignature(s) {
     s.status,
     s.title || '',
     s.projectName || '',
+    s.isObserver ? '1' : '0',
     s.gitBranch || '',
     s.model || '',
     s.currentTool || '',
@@ -306,8 +395,10 @@ function render() {
   });
 
   const visible = all.filter(matchesFilter);
+  const workItems = liveWorkItems();
+  const totalVisible = visible.length + workItems.length;
 
-  if (visible.length === 0) {
+  if (totalVisible === 0) {
     for (const el of entryEls.values()) el.remove();
     entryEls.clear();
     emptyEl.hidden = currentFilter === 'stats';
@@ -316,6 +407,7 @@ function render() {
     const visibleIds = new Set(visible.map((s) => s.sessionId));
 
     for (const [sid, el] of entryEls) {
+      if (sid.startsWith('agent:') || sid.startsWith('skill:')) continue;
       if (!visibleIds.has(sid)) {
         el.remove();
         entryEls.delete(sid);
@@ -346,6 +438,36 @@ function render() {
         grid.insertBefore(el, grid.children[i] || null);
       }
     });
+
+    const workKeys = new Set();
+    for (const item of workItems) {
+      const key = item.kind === 'agent'
+        ? `agent:${item.ev.sessionId}:${item.ev.name}:${item.ev.timestamp}`
+        : `skill:${item.ev.sessionId}:${item.ev.name}:${item.ev.timestamp}`;
+      workKeys.add(key);
+
+      let el = entryEls.get(key);
+      if (!el) {
+        el = htmlToElement(renderLiveCard(item));
+        entryEls.set(key, el);
+        grid.appendChild(el);
+      } else {
+        const timeEl = el.querySelector('.live-card__time');
+        if (timeEl) {
+          const ageSec = Math.max(0, Math.floor((Date.now() - item.ts) / 1000));
+          timeEl.textContent = `${fmtAge(ageSec)} ago`;
+        }
+      }
+    }
+
+    for (const [key, el] of entryEls) {
+      if (key.startsWith('agent:') || key.startsWith('skill:')) {
+        if (!workKeys.has(key)) {
+          el.remove();
+          entryEls.delete(key);
+        }
+      }
+    }
   }
 
   let live = 0, waiting = 0, paused = 0;
@@ -459,116 +581,399 @@ function fmtAvgDuration(totalMs, n) {
   return fmtDuration(avgSec);
 }
 
-function renderAgents() {
-  if (!agentsViewEl) return;
-  const list = activity?.agents || [];
-  if (list.length === 0) {
-    agentsViewEl.innerHTML = '<div class="activity__empty">// no subagents in window</div>';
-    return;
-  }
-  agentsViewEl.innerHTML = list.map(renderAgentCard).join('');
+function libraryMatches(item, query) {
+  if (!query) return true;
+  const q = query.toLowerCase();
+  return (
+    (item.slug || '').toLowerCase().includes(q) ||
+    (item.name || '').toLowerCase().includes(q) ||
+    (item.description || '').toLowerCase().includes(q) ||
+    (item.domain || '').toLowerCase().includes(q)
+  );
 }
 
-function renderAgentCard(a) {
-  const hasActive = a.activeCount > 0;
-  const avg = fmtAvgDuration(a.totalDurationMs, a.completedCount);
-  const parents = (a.parents || [])
-    .slice(0, 5)
+function fmtUsageBadge(usage) {
+  const n = usage?.thisMonth || 0;
+  const cls = n === 0 ? 'zero' : '';
+  return `<span class="library-item__usage ${cls}"><strong>${n}</strong>× this month</span>`;
+}
+
+function renderChips(containerId, groups, items, currentKey, getGroupOf, onSelect) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  const counts = new Map();
+  for (const it of items) {
+    const g = getGroupOf(it);
+    counts.set(g, (counts.get(g) || 0) + 1);
+  }
+  const chips = [
+    { key: 'all', label: 'all', count: items.length },
+    ...groups.map((g) => ({ key: g, label: g, count: counts.get(g) || 0 })),
+  ];
+  el.innerHTML = chips
     .map(
-      (p) => `
-        <li>
-          <span class="arrow">↪</span>
-          <span class="name" title="${escapeHtml(p.projectName)}">${escapeHtml(p.projectName)}</span>
-          <span class="count">${p.activeCount > 0 ? `<em>${p.activeCount} live</em>· ` : ''}${p.count}×</span>
-        </li>
+      (c) => `
+        <button class="lib-chip" data-active="${c.key === currentKey}" data-group="${escapeHtml(c.key)}">
+          ${escapeHtml(c.label)}<span class="lib-chip__count">${c.count}</span>
+        </button>
       `,
     )
     .join('');
+  el.querySelectorAll('.lib-chip').forEach((btn) => {
+    btn.addEventListener('click', () => onSelect(btn.dataset.group));
+  });
+}
+
+function renderAgents(force) {
+  const listEl = document.getElementById('agents-list');
+  const countEl = document.getElementById('agents-count');
+  if (!listEl) return;
+
+  const all = registry?.agents || [];
+  const filtered = all.filter(
+    (a) =>
+      libraryMatches(a, agentsSearch) && (agentsDomain === 'all' || a.domain === agentsDomain),
+  );
+
+  const key = [
+    registryHash(all),
+    agentsSearch,
+    agentsDomain,
+  ].join('||');
+  if (!force && key === _lastAgentsRenderKey) return;
+  _lastAgentsRenderKey = key;
+
+  renderChips(
+    'agents-chips',
+    registry.agentDomains || [],
+    all,
+    agentsDomain,
+    (a) => a.domain,
+    (val) => {
+      agentsDomain = val;
+      renderAgents(true);
+    },
+  );
+
+  if (countEl) {
+    countEl.textContent = filtered.length === all.length
+      ? `${all.length} total`
+      : `${filtered.length} / ${all.length} match`;
+  }
+
+  if (filtered.length === 0) {
+    listEl.innerHTML = '<div class="activity__empty">// no subagents match this filter</div>';
+    return;
+  }
+
+  listEl.innerHTML = filtered.map(renderAgentLibraryItem).join('');
+}
+
+function renderAgentLibraryItem(a) {
+  const desc = a.description ? escapeHtml(a.description) : '<em>no description</em>';
+  const tools = a.tools
+    ? `<span class="label">tools:</span> <span class="val">${escapeHtml(a.tools)}</span>`
+    : '';
+  const usage = fmtUsageBadge(a.usage);
+  return `
+    <details class="library-item library-item--agent" data-kind="agent" data-domain="${escapeHtml(a.domain)}" data-slug="${escapeHtml(a.slug)}">
+      <summary class="library-item__head">
+        <span class="library-item__chevron">▸</span>
+        <span class="library-item__name">
+          <span class="prefix">↪ </span>${escapeHtml(a.slug)}
+        </span>
+        ${usage}
+        <span class="library-item__domain">${escapeHtml(a.domain)}</span>
+        <button class="library-item__copy" data-copy="Agent(subagent_type='${escapeHtml(a.slug)}')" type="button" title="Copy spawn snippet">copy</button>
+      </summary>
+      <div class="library-item__body">
+        <p class="library-item__brief">${desc}</p>
+        ${tools ? `<div class="library-item__meta">${tools}</div>` : ''}
+        <div class="library-item__detail library-item__detail--loading">// click to expand → loading full profile…</div>
+      </div>
+    </details>
+  `;
+}
+
+function renderSkills(force) {
+  const listEl = document.getElementById('skills-list');
+  const countEl = document.getElementById('skills-count');
+  if (!listEl) return;
+
+  const all = registry?.skills || [];
+  const filtered = all.filter(
+    (s) =>
+      libraryMatches(s, skillsSearch) && (skillsGroup === 'all' || s.group === skillsGroup),
+  );
+
+  const key = [
+    registryHash(all),
+    skillsSearch,
+    skillsGroup,
+  ].join('||');
+  if (!force && key === _lastSkillsRenderKey) return;
+  _lastSkillsRenderKey = key;
+
+  renderChips(
+    'skills-chips',
+    registry.skillGroups || [],
+    all,
+    skillsGroup,
+    (s) => s.group,
+    (val) => {
+      skillsGroup = val;
+      renderSkills(true);
+    },
+  );
+
+  if (countEl) {
+    countEl.textContent = filtered.length === all.length
+      ? `${all.length} total`
+      : `${filtered.length} / ${all.length} match`;
+  }
+
+  if (filtered.length === 0) {
+    listEl.innerHTML = '<div class="activity__empty">// no skills match this filter</div>';
+    return;
+  }
+
+  listEl.innerHTML = filtered.map(renderSkillLibraryItem).join('');
+}
+
+function renderSkillLibraryItem(s) {
+  const desc = s.description ? escapeHtml(s.description) : '<em>no description</em>';
+  const args = s.argumentHint
+    ? `<span class="label">args:</span> <span class="val">${escapeHtml(s.argumentHint)}</span>`
+    : '';
+  const usage = fmtUsageBadge(s.usage);
+  return `
+    <details class="library-item library-item--skill" data-kind="skill" data-slug="${escapeHtml(s.slug)}">
+      <summary class="library-item__head">
+        <span class="library-item__chevron">▸</span>
+        <span class="library-item__name">
+          <span class="prefix">/</span>${escapeHtml(s.slug)}
+        </span>
+        ${usage}
+        <span class="library-item__domain">${escapeHtml(s.group || 'skill')}</span>
+        <button class="library-item__copy" data-copy="/${escapeHtml(s.slug)}" type="button" title="Copy slash command">copy</button>
+      </summary>
+      <div class="library-item__body">
+        <p class="library-item__brief">${desc}</p>
+        ${args ? `<div class="library-item__meta">${args}</div>` : ''}
+        <div class="library-item__detail library-item__detail--loading">// click to expand → loading full profile…</div>
+      </div>
+    </details>
+  `;
+}
+
+async function fetchDetailFor(item) {
+  const kind = item.dataset.kind;
+  const slug = item.dataset.slug;
+  const domain = item.dataset.domain;
+  const cacheKey = kind === 'agent' ? `agent:${domain}:${slug}` : `skill:${slug}`;
+  if (detailCache.has(cacheKey)) return detailCache.get(cacheKey);
+
+  const url = kind === 'agent' ? `/api/agent/${domain}/${slug}` : `/api/skill/${slug}`;
+  try {
+    const r = await fetch(url);
+    if (!r.ok) return null;
+    const data = await r.json();
+    detailCache.set(cacheKey, data);
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+function attachLibraryHandlers() {
+  document.body.addEventListener('toggle', async (e) => {
+    const item = e.target.closest('details.library-item');
+    if (!item || !item.open) return;
+    const detailEl = item.querySelector('.library-item__detail');
+    if (!detailEl || !detailEl.classList.contains('library-item__detail--loading')) return;
+
+    const data = await fetchDetailFor(item);
+    if (!data) {
+      detailEl.classList.remove('library-item__detail--loading');
+      detailEl.innerHTML = '<em>// could not load profile</em>';
+      return;
+    }
+    detailEl.classList.remove('library-item__detail--loading');
+    const body = data.body || '';
+    detailEl.textContent = body || '// no body content';
+  }, true);
+
+  document.body.addEventListener('click', async (e) => {
+    const btn = e.target.closest('.library-item__copy');
+    if (!btn) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const text = btn.dataset.copy || '';
+    try {
+      await navigator.clipboard.writeText(text);
+      btn.dataset.copied = 'true';
+      const oldText = btn.textContent;
+      btn.textContent = '✓ copied';
+      setTimeout(() => {
+        btn.textContent = oldText;
+        delete btn.dataset.copied;
+      }, 1400);
+    } catch {
+      btn.textContent = 'err';
+    }
+  });
+
+  const agentsSearchEl = document.getElementById('agents-search');
+  if (agentsSearchEl) {
+    agentsSearchEl.addEventListener('input', (e) => {
+      agentsSearch = e.target.value;
+      renderAgents(true);
+    });
+  }
+  const skillsSearchEl = document.getElementById('skills-search');
+  if (skillsSearchEl) {
+    skillsSearchEl.addEventListener('input', (e) => {
+      skillsSearch = e.target.value;
+      renderSkills(true);
+    });
+  }
+  const projectsSearchEl = document.getElementById('projects-search');
+  if (projectsSearchEl) {
+    projectsSearchEl.addEventListener('input', (e) => {
+      projectsSearch = e.target.value;
+      renderProjects(true);
+    });
+  }
+}
+
+attachLibraryHandlers();
+
+function projectMatches(project, query) {
+  if (!query) return true;
+  const q = query.toLowerCase();
+  if (project.name.toLowerCase().includes(q)) return true;
+  if (project.relPath.toLowerCase().includes(q)) return true;
+  for (const s of project.skills) {
+    if (s.slug.toLowerCase().includes(q) || (s.description || '').toLowerCase().includes(q)) return true;
+  }
+  for (const a of project.agents) {
+    if (a.slug.toLowerCase().includes(q) || (a.description || '').toLowerCase().includes(q)) return true;
+  }
+  return false;
+}
+
+function projectsRegistryHash(projects) {
+  if (!projects || projects.length === 0) return '0';
+  return projects
+    .map((p) => `${p.relPath}:${p.skills.length}+${p.agents.length}`)
+    .join('|');
+}
+
+function renderProjects(force) {
+  const listEl = document.getElementById('projects-list');
+  const countEl = document.getElementById('projects-count');
+  if (!listEl) return;
+
+  const all = registry?.projects || [];
+  const filtered = all.filter((p) => projectMatches(p, projectsSearch));
+
+  const key = [projectsRegistryHash(all), projectsSearch].join('||');
+  if (!force && key === _lastProjectsRenderKey) return;
+  _lastProjectsRenderKey = key;
+
+  if (countEl) {
+    const skillCount = all.reduce((acc, p) => acc + p.skills.length, 0);
+    const agentCount = all.reduce((acc, p) => acc + p.agents.length, 0);
+    countEl.textContent = `${all.length} projects · ${skillCount} skills · ${agentCount} agents`;
+  }
+
+  if (filtered.length === 0) {
+    listEl.innerHTML = '<div class="activity__empty">// no projects with .claude/skills or .claude/agents found</div>';
+    return;
+  }
+
+  listEl.innerHTML = filtered.map(renderProjectCard).join('');
+}
+
+function renderProjectCard(p) {
+  const skillsList = p.skills.length
+    ? `<ul class="proj-card__list">${p.skills.map((s) => renderProjectSkillRow(p, s)).join('')}</ul>`
+    : '<p class="proj-card__empty">// none</p>';
+  const agentsList = p.agents.length
+    ? `<ul class="proj-card__list">${p.agents.map((a) => renderProjectAgentRow(p, a)).join('')}</ul>`
+    : '<p class="proj-card__empty">// none</p>';
 
   return `
-    <article class="work-card work-card--agent" data-active="${hasActive}">
-      <header class="work-card__head">
-        <span class="work-card__kind">[ agent ]</span>
-        <span class="work-card__active ${hasActive ? '' : 'zero'}">
-          ${hasActive ? '<span class="dot" aria-hidden="true"></span>' : ''}
-          ${a.activeCount} running
-        </span>
-        <span class="work-card__lastseen">${fmtAgo(a.lastSeen)}</span>
+    <article class="proj-card">
+      <header class="proj-card__head">
+        <h3 class="proj-card__name">${escapeHtml(p.name)}</h3>
+        <span class="proj-card__path" title="${escapeHtml(p.path)}">${escapeHtml(p.relPath)}</span>
       </header>
-      <div class="work-card__body">
-        <h2 class="work-card__title">${escapeHtml(a.type)}</h2>
-        <div class="work-card__stats">
-          <div class="stat-cell stat-cell--active">
-            <span class="stat-cell__num ${hasActive ? 'has-active' : ''}">${a.activeCount}</span>
-            <span class="stat-cell__label">active</span>
-          </div>
-          <div class="stat-cell">
-            <span class="stat-cell__num">${a.totalCount}</span>
-            <span class="stat-cell__label">total</span>
-          </div>
-          <div class="stat-cell">
-            <span class="stat-cell__num">${avg}</span>
-            <span class="stat-cell__label">avg time</span>
-          </div>
+      <div class="proj-card__body">
+        <div class="proj-card__section">
+          <p class="proj-card__section-head">skills <span class="count">(${p.skills.length})</span></p>
+          ${skillsList}
         </div>
-        ${
-          parents
-            ? `<div>
-                <p class="work-card__parents-head">parents</p>
-                <ul class="work-card__parents">${parents}</ul>
-              </div>`
-            : ''
-        }
+        <div class="proj-card__section">
+          <p class="proj-card__section-head">subagents <span class="count">(${p.agents.length})</span></p>
+          ${agentsList}
+        </div>
       </div>
     </article>
   `;
 }
 
-function renderSkills() {
-  if (!skillsViewEl) return;
-  const list = activity?.skills || [];
-  if (list.length === 0) {
-    skillsViewEl.innerHTML = '<div class="activity__empty">// no skill invocations in window</div>';
-    return;
-  }
-  skillsViewEl.innerHTML = list.map(renderSkillCard).join('');
+function renderProjectSkillRow(p, s) {
+  const desc = s.description ? escapeHtml(s.description) : '<em>no description</em>';
+  const usage = fmtUsageBadge(s.usage);
+  const inlineBody = s.body ? escapeHtml(s.body) : '// no body content';
+  return `
+    <li>
+      <details class="library-item library-item--skill" data-kind="project-skill">
+        <summary class="library-item__head">
+          <span class="library-item__chevron">▸</span>
+          <span class="library-item__name">
+            <span class="prefix">/</span>${escapeHtml(s.slug)}
+          </span>
+          ${usage}
+          <span class="library-item__domain">project skill</span>
+          <button class="library-item__copy" data-copy="/${escapeHtml(s.slug)}" type="button" title="Copy slash command">copy</button>
+        </summary>
+        <div class="library-item__body">
+          <p class="library-item__brief">${desc}</p>
+          <div class="library-item__detail">${inlineBody}</div>
+        </div>
+      </details>
+    </li>
+  `;
 }
 
-function renderSkillCard(sk) {
-  const parents = (sk.parents || [])
-    .slice(0, 5)
-    .map(
-      (p) => `
-        <li>
-          <span class="arrow">↪</span>
-          <span class="name" title="${escapeHtml(p.projectName)}">${escapeHtml(p.projectName)}</span>
-          <span class="count">${p.count}×</span>
-        </li>
-      `,
-    )
-    .join('');
-
+function renderProjectAgentRow(p, a) {
+  const desc = a.description ? escapeHtml(a.description) : '<em>no description</em>';
+  const usage = fmtUsageBadge(a.usage);
+  const tools = a.tools
+    ? `<div class="library-item__meta"><span class="label">tools:</span> <span class="val">${escapeHtml(a.tools)}</span></div>`
+    : '';
+  const inlineBody = a.body ? escapeHtml(a.body) : '// no body content';
   return `
-    <article class="work-card work-card--skill">
-      <header class="work-card__head">
-        <span class="work-card__kind">[ skill ]</span>
-        <span class="work-card__active zero">
-          ${sk.totalCount} invocations
-        </span>
-        <span class="work-card__lastseen">${fmtAgo(sk.lastSeen)}</span>
-      </header>
-      <div class="work-card__body">
-        <h2 class="work-card__title">${escapeHtml(sk.name)}</h2>
-        ${
-          parents
-            ? `<div>
-                <p class="work-card__parents-head">invoked from</p>
-                <ul class="work-card__parents">${parents}</ul>
-              </div>`
-            : ''
-        }
-      </div>
-    </article>
+    <li>
+      <details class="library-item library-item--agent" data-kind="project-agent">
+        <summary class="library-item__head">
+          <span class="library-item__chevron">▸</span>
+          <span class="library-item__name">
+            <span class="prefix">↪ </span>${escapeHtml(a.slug)}
+          </span>
+          ${usage}
+          <span class="library-item__domain">project agent</span>
+          <button class="library-item__copy" data-copy="Agent(subagent_type='${escapeHtml(a.slug)}')" type="button" title="Copy spawn snippet">copy</button>
+        </summary>
+        <div class="library-item__body">
+          <p class="library-item__brief">${desc}</p>
+          ${tools}
+          <div class="library-item__detail">${inlineBody}</div>
+        </div>
+      </details>
+    </li>
   `;
 }
 
@@ -647,10 +1052,12 @@ function connect() {
       processes = msg.processes || [];
       if (msg.stats) stats = msg.stats;
       if (msg.activity) activity = msg.activity;
+      if (msg.registry) registry = msg.registry;
       render();
       renderStats();
       renderAgents();
       renderSkills();
+      renderProjects();
       renderActivity();
     } else if (msg.type === 'session-update') {
       sessions.set(msg.session.sessionId, msg.session);

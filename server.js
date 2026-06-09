@@ -7,6 +7,7 @@ import { dirname, join } from 'node:path';
 import { scanAllSessions, loadSession, getProjectsDir } from './lib/sessions.js';
 import { detectClaudeProcesses } from './lib/processes.js';
 import { aggregateStats, invalidateStatsCache } from './lib/stats.js';
+import { getRegistry, getSkillDetail, getAgentDetail } from './lib/registry.js';
 
 function aggregateActivity(sessions) {
   const agentsByType = new Map();
@@ -116,13 +117,21 @@ function aggregateActivity(sessions) {
 }
 
 async function buildSnapshot() {
-  const [sessions, processes, stats] = await Promise.all([
+  const [sessions, processes, stats, registry] = await Promise.all([
     scanAllSessions(),
     detectClaudeProcesses(),
     aggregateStats(),
+    getRegistry(),
   ]);
   const activity = aggregateActivity(sessions);
-  return { sessions, processes, stats, activity, scannedAt: new Date().toISOString() };
+  return {
+    sessions,
+    processes,
+    stats,
+    activity,
+    registry,
+    scannedAt: new Date().toISOString(),
+  };
 }
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -141,6 +150,18 @@ app.get('/api/sessions', async (req, res) => {
 
 app.get('/api/health', (req, res) => {
   res.json({ ok: true, projectsDir: getProjectsDir() });
+});
+
+app.get('/api/skill/:slug', async (req, res) => {
+  const detail = await getSkillDetail(req.params.slug);
+  if (!detail) return res.status(404).json({ error: 'not found' });
+  res.json(detail);
+});
+
+app.get('/api/agent/:domain/:slug', async (req, res) => {
+  const detail = await getAgentDetail(req.params.domain, req.params.slug);
+  if (!detail) return res.status(404).json({ error: 'not found' });
+  res.json(detail);
 });
 
 const server = createServer(app);

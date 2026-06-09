@@ -66,37 +66,120 @@
       </section>
 
       <nav class="filters" aria-label="View / Filter">
-        <button class="filter" data-filter="live" data-active="true">
-          <span class="filter__mark">▸</span> live
-        </button>
-        <button class="filter" data-filter="waiting">
-          <span class="filter__mark">▸</span> waiting
-        </button>
-        <button class="filter" data-filter="paused">
-          <span class="filter__mark">▸</span> paused
-        </button>
-        <button class="filter" data-filter="all">
-          <span class="filter__mark">▸</span> all
-        </button>
-        <span class="filter__divider" aria-hidden="true">|</span>
-        <button class="filter filter--agent" data-filter="agents">
-          <span class="filter__mark">▸</span> agents
-        </button>
-        <button class="filter filter--skill" data-filter="skills">
-          <span class="filter__mark">▸</span> skills
-        </button>
-        <button class="filter filter--mix" data-filter="activity">
-          <span class="filter__mark">▸</span> activity
-        </button>
-        <span class="filter__divider" aria-hidden="true">|</span>
-        <button class="filter filter--alt" data-filter="stats">
-          <span class="filter__mark">▸</span> stats
-        </button>
+        <div class="filter-group">
+          <span class="filter-group__label">sessions</span>
+          <div class="filter-group__buttons">
+            <button class="filter" data-filter="live" data-active="true">
+              <span class="filter__mark">▸</span> live
+            </button>
+            <button class="filter" data-filter="waiting">
+              <span class="filter__mark">▸</span> waiting
+            </button>
+            <button class="filter" data-filter="paused">
+              <span class="filter__mark">▸</span> paused
+            </button>
+            <button class="filter" data-filter="all">
+              <span class="filter__mark">▸</span> all
+            </button>
+          </div>
+        </div>
+
+        <div class="filter-group">
+          <span class="filter-group__label">library</span>
+          <div class="filter-group__buttons">
+            <button class="filter filter--agent" data-filter="agents">
+              <span class="filter__mark">▸</span> agents
+            </button>
+            <button class="filter filter--skill" data-filter="skills">
+              <span class="filter__mark">▸</span> skills
+            </button>
+            <button class="filter filter--mix" data-filter="projects">
+              <span class="filter__mark">▸</span> projects
+            </button>
+          </div>
+        </div>
+
+        <div class="filter-group">
+          <span class="filter-group__label">insights</span>
+          <div class="filter-group__buttons">
+            <button class="filter filter--mix" data-filter="activity">
+              <span class="filter__mark">▸</span> activity
+            </button>
+            <button class="filter filter--alt" data-filter="stats">
+              <span class="filter__mark">▸</span> stats
+            </button>
+          </div>
+        </div>
       </nav>
 
       <section id="grid" class="entries" aria-label="Sessions"></section>
-      <section id="agents-view" class="entries entries--alt" aria-label="Subagents" hidden></section>
-      <section id="skills-view" class="entries entries--alt" aria-label="Skills" hidden></section>
+
+      <section id="agents-view" class="library" aria-label="Subagent library" hidden>
+        <header class="library__head">
+          <h2 class="library__title">subagent library</h2>
+          <p class="library__desc">
+            // these are subagent profiles installed on this machine.
+            Claude (the main agent) spawns them via the <code>Task</code> tool when specialized work is needed.
+          </p>
+          <div class="library__controls">
+            <input
+              type="search"
+              class="library__search"
+              id="agents-search"
+              placeholder="filter by name or description…"
+              autocomplete="off"
+            />
+            <span class="library__count" id="agents-count">— total</span>
+          </div>
+          <div class="library__chips" id="agents-chips"></div>
+        </header>
+        <div class="library__list" id="agents-list"></div>
+      </section>
+
+      <section id="skills-view" class="library" aria-label="Skill library" hidden>
+        <header class="library__head">
+          <h2 class="library__title">skill library</h2>
+          <p class="library__desc">
+            // these are slash-command skills installed on this machine.
+            Invoke any of them with <code>/skill-name</code> in Claude Code.
+          </p>
+          <div class="library__controls">
+            <input
+              type="search"
+              class="library__search"
+              id="skills-search"
+              placeholder="filter by name or description…"
+              autocomplete="off"
+            />
+            <span class="library__count" id="skills-count">— total</span>
+          </div>
+          <div class="library__chips" id="skills-chips"></div>
+        </header>
+        <div class="library__list" id="skills-list"></div>
+      </section>
+
+      <section id="projects-view" class="library" aria-label="Project libraries" hidden>
+        <header class="library__head">
+          <h2 class="library__title">project libraries</h2>
+          <p class="library__desc">
+            // skills and subagents scoped to specific projects in
+            <code>~/Projects/**/.claude/</code>.
+            Available only when working in that project directory.
+          </p>
+          <div class="library__controls">
+            <input
+              type="search"
+              class="library__search"
+              id="projects-search"
+              placeholder="filter by project, skill, or agent…"
+              autocomplete="off"
+            />
+            <span class="library__count" id="projects-count">— total</span>
+          </div>
+        </header>
+        <div class="library__projects" id="projects-list"></div>
+      </section>
+
       <section id="activity-view" class="activity" aria-label="Activity timeline" hidden></section>
 
       <p id="empty" class="empty" hidden>

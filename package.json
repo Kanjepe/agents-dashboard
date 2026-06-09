@@ -12,6 +12,7 @@
   "dependencies": {
     "chokidar": "^4.0.3",
     "express": "^4.21.2",
+    "js-yaml": "^4.2.0",
     "ws": "^8.18.0"
   },
   "engines": {

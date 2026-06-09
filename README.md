@@ -32,18 +32,24 @@ Works for anyone running Claude Code locally; no organization-specific assumptio
 
 ---
 
-## Quick start (this PC)
+## Quick start
 
-Requirements: **Node.js 18 or newer** and an active Claude Code installation.
+Requirements: **Node.js 18 or newer** and an active Claude Code installation (so that `~/.claude/projects/` exists on your machine).
 
-```powershell
-cd C:\Users\Egils.Varna\Projects\EV\12-agents-dashboard
-.\start.bat
+```bash
+git clone https://github.com/Kanjepe/agents-dashboard.git
+cd agents-dashboard
+npm install
+npm start
 ```
 
-The first run installs dependencies (~10s), starts the server, and opens `http://localhost:4173` automatically.
+Then open <http://localhost:4173> in any browser.
 
-To stop: press `Ctrl+C` in the terminal window.
+On Windows you can also double-click `start.bat` after the first `npm install` — it starts the server and opens the browser automatically.
+
+To stop the server: press `Ctrl+C` in the terminal.
+
+> The dashboard reads from `~/.claude/projects/` on the machine it runs on. It does not connect to anything remote. Run it on the same PC where Claude Code is installed.
 
 ---
 
@@ -72,10 +78,10 @@ Pick one of these methods.
 
 **Option A — Copy folder manually**
 
-Copy the entire `12-agents-dashboard/` folder to the new PC, anywhere you like. **Skip `node_modules/`** — it will be regenerated. The folder you need contains:
+Copy the entire `agents-dashboard/` folder to the new PC, anywhere you like. **Skip `node_modules/`** — it will be regenerated. The folder you need contains:
 
 ```
-12-agents-dashboard/
+agents-dashboard/
 ├── server.js
 ├── package.json
 ├── package-lock.json
@@ -98,8 +104,8 @@ cd agents-dashboard
 **Option C — Zip + transfer**
 
 ```powershell
-# On source PC:
-Compress-Archive -Path "C:\Users\Egils.Varna\Projects\EV\12-agents-dashboard" `
+# On source PC (run from the folder ABOVE agents-dashboard):
+Compress-Archive -Path ".\agents-dashboard" `
                  -DestinationPath "agents-dashboard.zip" `
                  -Exclude "node_modules"
 

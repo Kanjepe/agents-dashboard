@@ -54,28 +54,28 @@ function makeToolResult(toolUseId, ts = isoNow()) {
 
 test('decodeProjectDirName: Windows path with drive letter', () => {
   assert.equal(
-    decodeProjectDirName('c--Users-Egils-Varna-Projects'),
-    'C:\\Users\\Egils\\Varna\\Projects',
+    decodeProjectDirName('c--Users-test-Projects'),
+    'C:\\Users\\test\\Projects',
   );
 });
 
 test('decodeProjectDirName: Windows path uppercase drive letter', () => {
   assert.equal(
-    decodeProjectDirName('C--Users-Egils-Varna'),
-    'C:\\Users\\Egils\\Varna',
+    decodeProjectDirName('C--Users-test'),
+    'C:\\Users\\test',
   );
 });
 
 test('decodeProjectDirName: Unix-style fallback', () => {
-  assert.equal(decodeProjectDirName('home-egils-projects'), 'home/egils/projects');
+  assert.equal(decodeProjectDirName('home-test-projects'), 'home/test/projects');
 });
 
 test('shortProjectName: extracts last segment of Windows path', () => {
-  assert.equal(shortProjectName('C:\\Users\\Egils\\Projects\\my-app'), 'my-app');
+  assert.equal(shortProjectName('C:\\Users\\test\\Projects\\my-app'), 'my-app');
 });
 
 test('shortProjectName: extracts last segment of Unix path', () => {
-  assert.equal(shortProjectName('/home/egils/projects/my-app'), 'my-app');
+  assert.equal(shortProjectName('/home/test/projects/my-app'), 'my-app');
 });
 
 test('shortProjectName: null returns "unknown"', () => {

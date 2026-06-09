@@ -122,7 +122,9 @@ function fmtDuration(seconds) {
 function fmtTokens(n) {
   if (n < 1000) return { num: String(n), unit: '' };
   if (n < 1_000_000) return { num: (n / 1000).toFixed(1), unit: 'k' };
-  return { num: (n / 1_000_000).toFixed(2), unit: 'M' };
+  if (n < 1_000_000_000) return { num: (n / 1_000_000).toFixed(2), unit: 'M' };
+  if (n < 1_000_000_000_000) return { num: (n / 1_000_000_000).toFixed(2), unit: 'B' };
+  return { num: (n / 1_000_000_000_000).toFixed(2), unit: 'T' };
 }
 
 function fmtTokensCompact(n) {

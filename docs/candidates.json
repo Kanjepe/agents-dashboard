@@ -1,0 +1,312 @@
+{
+  "repo": "C:\\Users\\Egils.Varna\\Projects\\EV\\12-agents-dashboard",
+  "scope": "full",
+  "manifest": {
+    "has_package_json": true,
+    "lockfiles": [
+      "package-lock.json"
+    ],
+    "dockerfile": false,
+    "docker_compose": false,
+    "next_config": false,
+    "middleware": false,
+    "github_workflows": false
+  },
+  "npm_audit": {
+    "auditReportVersion": 2,
+    "vulnerabilities": {},
+    "metadata": {
+      "vulnerabilities": {
+        "info": 0,
+        "low": 0,
+        "moderate": 0,
+        "high": 0,
+        "critical": 0,
+        "total": 0
+      },
+      "dependencies": {
+        "prod": 74,
+        "dev": 0,
+        "optional": 0,
+        "peer": 0,
+        "peerOptional": 0,
+        "total": 73
+      }
+    }
+  },
+  "candidates": [
+    {
+      "domain": "xss",
+      "pattern_name": "inner-html-assign",
+      "file": "public\\app.js",
+      "line": 379,
+      "match": "  tmp.innerHTML = html.trim();\r",
+      "before": [
+        "",
+        "function htmlToElement(html) {",
+        "  const tmp = document.createElement('template');"
+      ],
+      "after": [
+        "  return tmp.content.firstElementChild;",
+        "}",
+        ""
+      ]
+    },
+    {
+      "domain": "xss",
+      "pattern_name": "inner-html-assign",
+      "file": "public\\app.js",
+      "line": 431,
+      "match": "        el.innerHTML = fresh.innerHTML;\r",
+      "before": [
+        "        const fresh = htmlToElement(renderEntry(s, i));",
+        "        el.dataset.status = s.status;",
+        "        el.dataset.sig = sig;"
+      ],
+      "after": [
+        "      } else {",
+        "        updateTimeOnly(el, s);",
+        "      }"
+      ]
+    },
+    {
+      "domain": "xss",
+      "pattern_name": "inner-html-assign",
+      "file": "public\\app.js",
+      "line": 525,
+      "match": "    chart7El.innerHTML = '<div class=\"top__empty\">no data yet</div>';\r",
+      "before": [
+        "  if (!stats || !chart7El) return;",
+        "  const days = stats.last7Days || [];",
+        "  if (days.length === 0) {"
+      ],
+      "after": [
+        "    return;",
+        "  }",
+        "  const max = Math.max(...days.map((d) => d.tokens), 1);"
+      ]
+    },
+    {
+      "domain": "xss",
+      "pattern_name": "inner-html-assign",
+      "file": "public\\app.js",
+      "line": 529,
+      "match": "  chart7El.innerHTML = days\r",
+      "before": [
+        "    return;",
+        "  }",
+        "  const max = Math.max(...days.map((d) => d.tokens), 1);"
+      ],
+      "after": [
+        "    .map((d) => {",
+        "      const heightPct = d.tokens === 0 ? 0 : Math.max(2, (d.tokens / max) * 100);",
+        "      const isToday = d.date === stats.todayDate;"
+      ]
+    },
+    {
+      "domain": "xss",
+      "pattern_name": "inner-html-assign",
+      "file": "public\\app.js",
+      "line": 554,
+      "match": "    el.innerHTML = '<li class=\"top__empty\">// no entries</li>';\r",
+      "before": [
+        "function renderTop(el, list) {",
+        "  if (!el) return;",
+        "  if (!list || list.length === 0) {"
+      ],
+      "after": [
+        "    return;",
+        "  }",
+        "  const max = list[0].tokens || 1;"
+      ]
+    },
+    {
+      "domain": "xss",
+      "pattern_name": "inner-html-assign",
+      "file": "public\\app.js",
+      "line": 558,
+      "match": "  el.innerHTML = list\r",
+      "before": [
+        "    return;",
+        "  }",
+        "  const max = list[0].tokens || 1;"
+      ],
+      "after": [
+        "    .map((p, i) => {",
+        "      const rank = String(i + 1).padStart(2, '0');",
+        "      const widthPct = Math.max(2, (p.tokens / max) * 100);"
+      ]
+    },
+    {
+      "domain": "xss",
+      "pattern_name": "inner-html-assign",
+      "file": "public\\app.js",
+      "line": 615,
+      "match": "  el.innerHTML = chips\r",
+      "before": [
+        "    { key: 'all', label: 'all', count: items.length },",
+        "    ...groups.map((g) => ({ key: g, label: g, count: counts.get(g) || 0 })),",
+        "  ];"
+      ],
+      "after": [
+        "    .map(",
+        "      (c) => `",
+        "        <button class=\"lib-chip\" data-active=\"${c.key === currentKey}\" data-group=\"${escapeHtml(c.key)}\">"
+      ]
+    },
+    {
+      "domain": "xss",
+      "pattern_name": "inner-html-assign",
+      "file": "public\\app.js",
+      "line": 667,
+      "match": "    listEl.innerHTML = '<div class=\"activity__empty\">// no subagents match this filter</div>';\r",
+      "before": [
+        "  }",
+        "",
+        "  if (filtered.length === 0) {"
+      ],
+      "after": [
+        "    return;",
+        "  }",
+        ""
+      ]
+    },
+    {
+      "domain": "xss",
+      "pattern_name": "inner-html-assign",
+      "file": "public\\app.js",
+      "line": 671,
+      "match": "  listEl.innerHTML = filtered.map(renderAgentLibraryItem).join('');\r",
+      "before": [
+        "    return;",
+        "  }",
+        ""
+      ],
+      "after": [
+        "}",
+        "",
+        "function renderAgentLibraryItem(a) {"
+      ]
+    },
+    {
+      "domain": "xss",
+      "pattern_name": "inner-html-assign",
+      "file": "public\\app.js",
+      "line": 738,
+      "match": "    listEl.innerHTML = '<div class=\"activity__empty\">// no skills match this filter</div>';\r",
+      "before": [
+        "  }",
+        "",
+        "  if (filtered.length === 0) {"
+      ],
+      "after": [
+        "    return;",
+        "  }",
+        ""
+      ]
+    },
+    {
+      "domain": "xss",
+      "pattern_name": "inner-html-assign",
+      "file": "public\\app.js",
+      "line": 742,
+      "match": "  listEl.innerHTML = filtered.map(renderSkillLibraryItem).join('');\r",
+      "before": [
+        "    return;",
+        "  }",
+        ""
+      ],
+      "after": [
+        "}",
+        "",
+        "function renderSkillLibraryItem(s) {"
+      ]
+    },
+    {
+      "domain": "xss",
+      "pattern_name": "inner-html-assign",
+      "file": "public\\app.js",
+      "line": 800,
+      "match": "      detailEl.innerHTML = '<em>// could not load profile</em>';\r",
+      "before": [
+        "    const data = await fetchDetailFor(item);",
+        "    if (!data) {",
+        "      detailEl.classList.remove('library-item__detail--loading');"
+      ],
+      "after": [
+        "      return;",
+        "    }",
+        "    detailEl.classList.remove('library-item__detail--loading');"
+      ]
+    },
+    {
+      "domain": "xss",
+      "pattern_name": "inner-html-assign",
+      "file": "public\\app.js",
+      "line": 893,
+      "match": "    listEl.innerHTML = '<div class=\"activity__empty\">// no projects with .claude/skills or .claude/agents found</div>';\r",
+      "before": [
+        "  }",
+        "",
+        "  if (filtered.length === 0) {"
+      ],
+      "after": [
+        "    return;",
+        "  }",
+        ""
+      ]
+    },
+    {
+      "domain": "xss",
+      "pattern_name": "inner-html-assign",
+      "file": "public\\app.js",
+      "line": 897,
+      "match": "  listEl.innerHTML = filtered.map(renderProjectCard).join('');\r",
+      "before": [
+        "    return;",
+        "  }",
+        ""
+      ],
+      "after": [
+        "}",
+        "",
+        "function renderProjectCard(p) {"
+      ]
+    },
+    {
+      "domain": "xss",
+      "pattern_name": "inner-html-assign",
+      "file": "public\\app.js",
+      "line": 986,
+      "match": "    activityViewEl.innerHTML = '<div class=\"activity__empty\">// no activity in window</div>';\r",
+      "before": [
+        "  if (!activityViewEl) return;",
+        "  const list = activity?.timeline || [];",
+        "  if (list.length === 0) {"
+      ],
+      "after": [
+        "    return;",
+        "  }",
+        "  activityViewEl.innerHTML = list.map(renderActivityRow).join('');"
+      ]
+    },
+    {
+      "domain": "xss",
+      "pattern_name": "inner-html-assign",
+      "file": "public\\app.js",
+      "line": 989,
+      "match": "  activityViewEl.innerHTML = list.map(renderActivityRow).join('');\r",
+      "before": [
+        "    activityViewEl.innerHTML = '<div class=\"activity__empty\">// no activity in window</div>';",
+        "    return;",
+        "  }"
+      ],
+      "after": [
+        "}",
+        "",
+        "function renderActivityRow(ev) {"
+      ]
+    }
+  ],
+  "pattern_count": 77
+}

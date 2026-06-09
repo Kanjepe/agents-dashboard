@@ -1,0 +1,315 @@
+{
+  "scope": "full",
+  "repo": "agents-dashboard",
+  "audited_at": "2026-06-09",
+  "report_confidence": "high",
+  "scope_notes": "Full repo: 9 source files (lib/*, public/*, server.js), 4 test files, 4 dependencies. No Dockerfile, no CI workflows, no docker-compose, no database, no auth. Server binds localhost by intent but uses Node default binding.",
+  "findings": [
+    {
+      "id": "sec-001",
+      "title": "HTTP server binds to all interfaces by default - LAN exposure",
+      "severity": "HIGH",
+      "confidence": "high",
+      "status": "informational",
+      "domain": "network",
+      "cwe": "CWE-1327",
+      "affected_files": [
+        { "path": "server.js", "line": 249, "endLine": 252 }
+      ],
+      "evidence": [
+        {
+          "path": "server.js",
+          "line": 249,
+          "snippet": "server.listen(PORT, () => {\n  console.log('\\n  Agents Dashboard');\n  console.log('  Watching: ' + projectsDir);\n  console.log('  Open:     http://localhost:' + PORT + '\\n');\n});",
+          "before": [
+            "watcher.on('add', onJsonlChange);",
+            "watcher.on('change', onJsonlChange);",
+            "watcher.on('error', (err) => console.error('[watch] error:', err.message));",
+            ""
+          ],
+          "after": [
+            "",
+            "process.on('SIGINT', () => {",
+            "  console.log('\\n  Shutting down...');"
+          ]
+        }
+      ],
+      "vulnerable_pattern": "server.listen(PORT, cb) with no host argument binds to :: / 0.0.0.0 by default in Node.js. The dashboard is then reachable from any device on the same LAN. Combined with the design choice of zero authentication (intentional 'localhost only'), anyone on the same network can read the full token-stats history and active Claude Code sessions.",
+      "impact": "A roommate, coworker on shared WiFi, or attacker on a port-forwarded network can open http://<your-ip>:4173 and see every active Claude session, project name, AI-generated session titles (which leak prompt content), and total token usage. JSONL body content is not exposed but inferred metadata is.",
+      "exploit_scenario": "Attacker on the same LAN scans port 4173, opens the URL in a browser, and reads the live dashboard. No credentials, no challenge. The /api/skill/:slug and /api/agent/:domain/:slug endpoints (now validated) still leak the full body of any skill or agent profile installed on the victim machine.",
+      "fix_summary": "Bind the HTTP server explicitly to 127.0.0.1 (or ::1) so only the local machine can connect.",
+      "fix_steps": [
+        "1. Change server.listen(PORT, () => {...}) to server.listen(PORT, '127.0.0.1', () => {...}).",
+        "2. Optionally expose a HOST env var defaulting to 127.0.0.1 so power users can opt in to LAN access deliberately.",
+        "3. Document the binding choice in README so users understand the threat model.",
+        "4. Verify after fix: from another machine on the LAN, http://<dev-machine-ip>:4173 must time out or refuse the connection."
+      ],
+      "safe_code_example": "const HOST = process.env.HOST || '127.0.0.1';\nserver.listen(PORT, HOST, () => {\n  console.log('  Open:     http://' + HOST + ':' + PORT + '\\n');\n});",
+      "verification_steps": [
+        "Get-NetTCPConnection -LocalPort 4173 -State Listen | Select LocalAddress  (expected: 127.0.0.1).",
+        "From a second machine on LAN, curl http://<dev-ip>:4173 must fail."
+      ],
+      "false_positive_notes": "",
+      "references": [
+        "https://nodejs.org/api/net.html#serverlistenoptions-callback",
+        "https://cwe.mitre.org/data/definitions/1327.html"
+      ]
+    },
+    {
+      "id": "sec-002",
+      "title": "WebSocket endpoint accepts any origin (CSWSH)",
+      "severity": "MEDIUM",
+      "confidence": "high",
+      "status": "informational",
+      "domain": "csrf",
+      "cwe": "CWE-346",
+      "affected_files": [
+        { "path": "server.js", "line": 170, "endLine": 170 }
+      ],
+      "evidence": [
+        {
+          "path": "server.js",
+          "line": 170,
+          "snippet": "const wss = new WebSocketServer({ server, path: '/ws' });",
+          "before": [
+            "const server = createServer(app);"
+          ],
+          "after": [
+            "",
+            "const clients = new Set();",
+            ""
+          ]
+        }
+      ],
+      "vulnerable_pattern": "WebSocketServer constructed without verifyClient handler or Origin header check. A malicious webpage opened by the user in any browser tab can open a cross-origin WebSocket to ws://localhost:4173/ws and read the same snapshot data the legitimate dashboard receives. The browser does NOT apply same-origin policy to WebSocket connections - only to HTTP fetches.",
+      "impact": "If the user visits an attacker-controlled webpage while the dashboard server runs locally, the attacker's JS can connect to ws://localhost:4173/ws and stream all session data, token totals, project paths, and registry content out to a remote endpoint. Cross-Site WebSocket Hijacking (CSWSH).",
+      "exploit_scenario": "Attacker hosts page with: new WebSocket('ws://localhost:4173/ws'). When victim visits, connection succeeds (no origin check). Attacker's JS reads onmessage payloads, JSON.parse them, POSTs full snapshot to a remote server. Victim sees nothing.",
+      "fix_summary": "Reject WebSocket upgrades whose Origin header is not http://localhost:* / http://127.0.0.1:*.",
+      "fix_steps": [
+        "1. Add verifyClient to WebSocketServer options that checks info.origin against an allowlist.",
+        "2. Allow null origin only if you intentionally support file:// or sandboxed contexts.",
+        "3. After fix, attempt WebSocket connection from a different page - it must be rejected with code 403."
+      ],
+      "safe_code_example": "const ALLOWED_ORIGINS = new Set([\n  'http://localhost:' + PORT,\n  'http://127.0.0.1:' + PORT,\n]);\nconst wss = new WebSocketServer({\n  server, path: '/ws',\n  verifyClient: (info, cb) => {\n    const origin = info.origin || '';\n    cb(ALLOWED_ORIGINS.has(origin), 403, 'forbidden origin');\n  },\n});",
+      "verification_steps": [
+        "Open a non-localhost page, run new WebSocket('ws://localhost:4173/ws') in DevTools.",
+        "After fix: connection closes immediately with reason 'forbidden origin'."
+      ],
+      "false_positive_notes": "",
+      "references": [
+        "https://cwe.mitre.org/data/definitions/346.html",
+        "https://christian-schneider.net/papers/CrossSiteWebSocketHijacking.html"
+      ]
+    },
+    {
+      "id": "sec-003",
+      "title": "Missing security headers (CSP, X-Frame-Options, etc.)",
+      "severity": "MEDIUM",
+      "confidence": "high",
+      "status": "informational",
+      "domain": "headers",
+      "cwe": "CWE-693",
+      "affected_files": [
+        { "path": "server.js", "line": 141, "endLine": 141 }
+      ],
+      "evidence": [
+        {
+          "path": "server.js",
+          "line": 141,
+          "snippet": "app.use(express.static(join(__dirname, 'public')));",
+          "before": [
+            "const app = express();"
+          ],
+          "after": [
+            "",
+            "app.get('/api/sessions', async (req, res) => {"
+          ]
+        }
+      ],
+      "vulnerable_pattern": "Express server uses express.static and JSON endpoints but never sets Content-Security-Policy, X-Frame-Options, X-Content-Type-Options, or Referrer-Policy. No helmet middleware. If an XSS bug were ever introduced, there is no second layer of defense.",
+      "impact": "Any future XSS regression in the frontend has no CSP backstop. Pages can be iframed by any site (clickjacking). Browsers may MIME-sniff served files.",
+      "exploit_scenario": "Defense-in-depth gap. If a future contributor adds an unescaped innerHTML write of user-controlled data, an attacker who controls JSONL content can inject script. With CSP set to default-src 'self', inline script would be blocked.",
+      "fix_summary": "Add helmet middleware with a conservative CSP suited for a local-only dashboard.",
+      "fix_steps": [
+        "1. npm install helmet",
+        "2. Add app.use(helmet({...})) before any routes.",
+        "3. Set X-Frame-Options: DENY (no need to be framed).",
+        "4. Test that the dashboard still renders correctly with CSP enabled."
+      ],
+      "safe_code_example": "import helmet from 'helmet';\napp.use(helmet({\n  contentSecurityPolicy: {\n    directives: {\n      defaultSrc: [\"'self'\"],\n      scriptSrc: [\"'self'\"],\n      styleSrc: [\"'self'\", \"'unsafe-inline'\", 'https://fonts.googleapis.com'],\n      fontSrc: [\"'self'\", 'https://fonts.gstatic.com'],\n      connectSrc: [\"'self'\", 'ws://localhost:' + PORT],\n    },\n  },\n}));",
+      "verification_steps": [
+        "Open http://localhost:4173/, check Network tab response headers include Content-Security-Policy.",
+        "curl -I http://localhost:4173/ expects X-Frame-Options, X-Content-Type-Options."
+      ],
+      "false_positive_notes": "",
+      "references": [
+        "https://helmetjs.github.io/",
+        "https://cwe.mitre.org/data/definitions/693.html"
+      ]
+    },
+    {
+      "id": "sec-004",
+      "title": "No rate limiting on API endpoints",
+      "severity": "LOW",
+      "confidence": "high",
+      "status": "informational",
+      "domain": "rate-limit",
+      "cwe": "CWE-770",
+      "affected_files": [
+        { "path": "server.js", "line": 143, "endLine": 165 }
+      ],
+      "evidence": [
+        {
+          "path": "server.js",
+          "line": 143,
+          "snippet": "app.get('/api/sessions', async (req, res) => {\n  try {\n    res.json(await buildSnapshot());\n  } catch (err) {\n    res.status(500).json({ error: err.message });\n  }\n});",
+          "before": [
+            "app.use(express.static(join(__dirname, 'public')));"
+          ],
+          "after": [
+            "",
+            "app.get('/api/health', (req, res) => {"
+          ]
+        }
+      ],
+      "vulnerable_pattern": "buildSnapshot() is expensive - walks JSONL projects directory, scans all files newer than 30 minutes, re-parses up to a thousand files in cache-miss case. An attacker hammering /api/sessions can DoS the server and block the event loop for legitimate users.",
+      "impact": "Local DoS - any process on the machine can make dashboard unresponsive. Limited blast radius because localhost only (once HIGH finding is fixed).",
+      "exploit_scenario": "Curl loop: while true; do curl http://localhost:4173/api/sessions & done. Server queue-pressured; chokidar backlog; live updates stop.",
+      "fix_summary": "Add express-rate-limit with 60 req/min per IP.",
+      "fix_steps": [
+        "1. npm install express-rate-limit",
+        "2. Apply global limiter before /api routes",
+        "3. Acceptable for localhost-only; tighten if exposed."
+      ],
+      "safe_code_example": "import rateLimit from 'express-rate-limit';\nconst apiLimiter = rateLimit({ windowMs: 60_000, max: 60, standardHeaders: true });\napp.use('/api', apiLimiter);",
+      "verification_steps": [
+        "for i in {1..100}; do curl -s -o /dev/null -w '%{http_code}\\n' http://localhost:4173/api/health; done | sort | uniq -c - expect 429 for some."
+      ],
+      "false_positive_notes": "",
+      "references": [
+        "https://cwe.mitre.org/data/definitions/770.html"
+      ]
+    },
+    {
+      "id": "sec-005",
+      "title": "Frontend uses innerHTML for all dynamic rendering (pattern fragility)",
+      "severity": "LOW",
+      "confidence": "high",
+      "status": "confirmed",
+      "domain": "xss",
+      "cwe": "CWE-79",
+      "affected_files": [
+        { "path": "public/app.js", "line": 379, "endLine": 989 }
+      ],
+      "evidence": [
+        {
+          "path": "public/app.js",
+          "line": 671,
+          "snippet": "listEl.innerHTML = filtered.map(renderAgentLibraryItem).join('');",
+          "before": [
+            "if (filtered.length === 0) {",
+            "  listEl.innerHTML = '<div class=\"activity__empty\">// no subagents match this filter</div>';",
+            "  return;",
+            "}"
+          ],
+          "after": [
+            "}",
+            "",
+            "function renderAgentLibraryItem(a) {"
+          ]
+        }
+      ],
+      "vulnerable_pattern": "All 16 dynamic UI updates use el.innerHTML = templateString. Template strings DO escape user data via escapeHtml(), but the pattern is fragile - a single forgotten escape in future change becomes a stored-XSS sink.",
+      "impact": "Defense-in-depth gap. Current code is safe because every interpolation goes through escapeHtml(). First time someone forgets, payload executes in dashboard context.",
+      "exploit_scenario": "Hypothetical: someone with write access to ~/.claude/projects/ adds malicious file with session title containing <img src=x onerror='fetch(...)'>. If a future change omits escapeHtml around s.title, payload fires. Today's code is safe.",
+      "fix_summary": "Prefer textContent + element.appendChild over innerHTML where possible.",
+      "fix_steps": [
+        "1. Audit each innerHTML site - static markup is fine.",
+        "2. For dynamic content, refactor to document.createElement + textContent.",
+        "3. As lighter alternative, add unit test that locks in escapeHtml's contract."
+      ],
+      "safe_code_example": "function appendEntry(parent, session) {\n  const article = document.createElement('article');\n  article.className = 'entry';\n  const title = document.createElement('h2');\n  title.textContent = session.projectName;\n  article.appendChild(title);\n  parent.appendChild(article);\n}",
+      "verification_steps": [
+        "rg -n 'innerHTML\\s*=' public/  count current usage as baseline.",
+        "After refactor count should drop to <= 5."
+      ],
+      "false_positive_notes": "Most of the 16 innerHTML matches are safe because escapeHtml() is consistently applied. This finding is about pattern fragility, not a current exploitable bug.",
+      "references": [
+        "https://cwe.mitre.org/data/definitions/79.html"
+      ]
+    },
+    {
+      "id": "sec-006",
+      "title": "No dependency vulnerabilities (positive observation)",
+      "severity": "INFO",
+      "confidence": "high",
+      "status": "informational",
+      "domain": "dependencies",
+      "affected_files": [
+        { "path": "package.json", "line": 1, "endLine": 21 }
+      ],
+      "evidence": [
+        {
+          "path": "package.json",
+          "line": 11,
+          "snippet": "\"dependencies\": {\n  \"chokidar\": \"^4.0.3\",\n  \"express\": \"^4.21.2\",\n  \"js-yaml\": \"^4.2.0\",\n  \"ws\": \"^8.18.0\"\n}",
+          "before": [],
+          "after": []
+        }
+      ],
+      "vulnerable_pattern": "npm audit reports zero vulnerabilities across 73 transitive dependencies. Only 4 direct dependencies, all maintained.",
+      "impact": "Low supply-chain risk surface today.",
+      "exploit_scenario": "N/A informational.",
+      "fix_summary": "No action required. Re-run npm audit periodically.",
+      "fix_steps": [
+        "1. Once repo is public, enable Dependabot in repo settings.",
+        "2. Optionally enable npm audit signatures verification in CI."
+      ],
+      "safe_code_example": "",
+      "verification_steps": [
+        "npm audit expected 0 vulnerabilities."
+      ],
+      "false_positive_notes": "",
+      "references": [
+        "https://docs.github.com/en/code-security/dependabot"
+      ]
+    },
+    {
+      "id": "sec-007",
+      "title": "Path traversal in detail endpoints already mitigated",
+      "severity": "INFO",
+      "confidence": "high",
+      "status": "informational",
+      "domain": "input-validation",
+      "affected_files": [
+        { "path": "server.js", "line": 155, "endLine": 165 },
+        { "path": "lib/registry.js", "line": 8, "endLine": 12 }
+      ],
+      "evidence": [
+        {
+          "path": "server.js",
+          "line": 155,
+          "snippet": "const SAFE_NAME_RE = /^[a-z0-9][a-z0-9_-]*$/i;\n\napp.get('/api/skill/:slug', async (req, res) => {\n  if (!SAFE_NAME_RE.test(req.params.slug)) {\n    return res.status(400).json({ error: 'invalid slug' });\n  }",
+          "before": [],
+          "after": []
+        }
+      ],
+      "vulnerable_pattern": "Earlier code passed req.params directly to path.join() against the registry root, allowing %2F-encoded traversal. Now defended at two layers: SAFE_NAME_RE allowlist at the route, and isInsideDir() resolved-path check at the library function.",
+      "impact": "None today - verified manually with /api/skill/..%2f..%2fetc%2fhosts returns 400 Bad Request.",
+      "exploit_scenario": "N/A fixed in commit d129c1b.",
+      "fix_summary": "Already done. Keep both layers when refactoring.",
+      "fix_steps": [
+        "1. Do not remove SAFE_NAME_RE or isInsideDir() during future refactors.",
+        "2. New endpoints accepting file-name-like params must validate similarly."
+      ],
+      "safe_code_example": "",
+      "verification_steps": [
+        "curl http://localhost:4173/api/skill/..%2fpasswd  expect 400."
+      ],
+      "false_positive_notes": "",
+      "references": [
+        "https://cwe.mitre.org/data/definitions/22.html"
+      ]
+    }
+  ]
+}

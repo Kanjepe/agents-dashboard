@@ -1,0 +1,632 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Security audit — repository</title>
+<style>
+:root{
+  color-scheme: light;
+  --bg:#f7f8fa;--surface:#fff;--surface-2:#f1f3f5;--text:#1a1d23;--muted:#5b6470;
+  --border:#e1e4e8;--critical:#b3261e;--high:#ea580c;--medium:#b45309;--low:#2563eb;
+  --info:#475569;--ok:#15803d;--code-bg:#f1f3f5;--shadow:0 4px 18px rgba(0,0,0,.05);
+  --radius:12px;
+}
+html[data-theme="dark"]{
+  color-scheme: dark;
+  --bg:#0d1117;--surface:#161b22;--surface-2:#1f262d;--text:#e6edf3;--muted:#8b949e;
+  --border:#30363d;--critical:#f85149;--high:#fb923c;--medium:#facc15;--low:#60a5fa;
+  --info:#94a3b8;--ok:#4ade80;--code-bg:#161b22;--shadow:0 4px 18px rgba(0,0,0,.4);
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%}
+body{background:var(--bg);color:var(--text);
+  font-family:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  line-height:1.55;-webkit-font-smoothing:antialiased}
+.layout{display:grid;grid-template-columns:280px minmax(0,1fr);max-width:1280px;margin:0 auto;gap:28px;padding:28px 24px}
+nav.toc{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);overflow:auto;
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;font-size:13px}
+nav.toc h2{margin:0 0 10px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+nav.toc ol{list-style:none;padding:0;margin:0}
+nav.toc li{margin-bottom:4px}
+nav.toc a{display:block;padding:5px 8px;border-radius:6px;color:var(--text);text-decoration:none;border-left:2px solid transparent}
+nav.toc a:hover{background:var(--surface-2)}
+nav.toc a.active{background:var(--surface-2);border-left-color:var(--low);font-weight:600}
+header.head{margin-bottom:28px;padding-bottom:20px;border-bottom:1px solid var(--border)}
+header.head h1{margin:0 0 6px;font-size:26px;letter-spacing:-.02em}
+header.head p{margin:0;color:var(--muted)}
+.head-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:14px}
+.theme-toggle{margin-left:auto;background:var(--surface);border:1px solid var(--border);color:var(--text);
+  padding:5px 12px;border-radius:999px;cursor:pointer;font:inherit;font-size:13px}
+.theme-toggle:hover{background:var(--surface-2)}
+section{margin-bottom:42px}
+section h2{font-size:20px;margin:0 0 12px;scroll-margin-top:16px}
+section h3{font-size:15px;margin:18px 0 8px;color:var(--muted)}
+section h4{font-size:13px;margin:14px 0 6px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  padding:18px;margin:14px 0;box-shadow:var(--shadow)}
+.score-row{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+.score{font-size:48px;font-weight:700;letter-spacing:-.03em;line-height:1}
+.score.has-tilde::before{content:"~";color:var(--medium)}
+.score-meta{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.confidence{padding:4px 12px;border-radius:999px;font-weight:600;font-size:13px;text-transform:uppercase;letter-spacing:.05em}
+.confidence[data-confidence="high"]{background:rgba(21,128,61,.15);color:var(--ok)}
+.confidence[data-confidence="medium"]{background:rgba(180,83,9,.15);color:var(--medium)}
+.confidence[data-confidence="low"]{background:rgba(179,38,30,.15);color:var(--critical)}
+.counts{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+.count{padding:6px 12px;border-radius:999px;font-weight:700;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;color:#fff}
+.count-CRITICAL{background:var(--critical)}
+.count-HIGH{background:var(--high)}
+.count-MEDIUM{background:var(--medium);color:#000}
+.count-LOW{background:var(--low)}
+.count-INFO{background:var(--info)}
+.badge{display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:5px;font-size:11px;font-weight:700;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;text-transform:uppercase;letter-spacing:.04em}
+.badge.sev-CRITICAL{background:var(--critical);color:#fff}
+.badge.sev-HIGH{background:var(--high);color:#fff}
+.badge.sev-MEDIUM{background:var(--medium);color:#000}
+.badge.sev-LOW{background:var(--low);color:#fff}
+.badge.sev-INFO{background:var(--info);color:#fff}
+.badge.conf-high{background:rgba(21,128,61,.18);color:var(--ok)}
+.badge.conf-medium{background:rgba(180,83,9,.18);color:var(--medium)}
+.badge.conf-low{background:rgba(179,38,30,.18);color:var(--critical)}
+.badge.domain{background:var(--surface-2);color:var(--text);border:1px solid var(--border)}
+.badge.status{background:transparent;color:var(--muted);border:1px solid var(--border)}
+.badge.status-confirmed{color:var(--critical);border-color:var(--critical)}
+.badge.status-likely{color:var(--high);border-color:var(--high)}
+.badge.status-needs-human-verification{color:var(--medium);border-color:var(--medium)}
+.badge.status-informational{color:var(--info);border-color:var(--info)}
+.anchor{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;background:var(--surface-2);
+  color:var(--low);padding:1px 7px;border:1px solid var(--border);border-radius:4px;white-space:nowrap}
+.finding{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  margin:10px 0;padding:0;box-shadow:var(--shadow);overflow:hidden}
+.finding>summary{padding:14px 18px;cursor:pointer;display:flex;flex-wrap:wrap;gap:8px;align-items:center;list-style:none}
+.finding>summary::-webkit-details-marker{display:none}
+.finding>summary .title{font-weight:600;font-size:14px;flex:1;min-width:200px}
+.finding[open]>summary{border-bottom:1px solid var(--border)}
+.finding .body{padding:8px 18px 18px}
+.finding .body p{margin:0 0 8px}
+.finding ol.steps{padding-left:22px;margin:4px 0}
+.finding .evidence-block{margin:6px 0}
+pre.evidence,pre.safe{background:var(--code-bg);border:1px solid var(--border);border-radius:6px;
+  padding:10px;margin:6px 0;overflow:auto;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;line-height:1.45;
+  white-space:pre-wrap;word-break:break-word}
+pre.evidence{border-left:3px solid var(--critical)}
+pre.safe{border-left:3px solid var(--ok)}
+.evidence-hit{background:rgba(255,193,7,.22);padding:1px 0;border-radius:3px;display:inline-block;width:100%}
+table{width:100%;border-collapse:collapse;background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden;font-size:13.5px}
+th,td{text-align:left;padding:9px 11px;border-bottom:1px solid var(--border);vertical-align:top}
+th{background:var(--surface-2);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+tr:last-child td{border-bottom:none}
+.filters{display:flex;gap:14px;flex-wrap:wrap;margin:10px 0 18px;padding:12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius)}
+.filters fieldset{border:none;padding:0;margin:0;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.filters legend{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);padding-right:8px}
+.filters label{display:inline-flex;gap:4px;align-items:center;font-size:12px;cursor:pointer;padding:2px 6px;border-radius:4px}
+.filters label:hover{background:var(--surface-2)}
+.filters input[type="text"]{padding:5px 10px;border:1px solid var(--border);border-radius:5px;background:var(--bg);color:var(--text);font:inherit;font-size:13px;min-width:200px}
+.top-risks{list-style:none;padding:0;margin:8px 0}
+.top-risks li{padding:8px 10px;border-bottom:1px solid var(--border);display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.top-risks li:last-child{border-bottom:none}
+.top-risks a{color:inherit;text-decoration:none}
+.top-risks a:hover{text-decoration:underline}
+.svg-card svg{max-width:100%;height:auto;display:block}
+footer.foot{margin-top:40px;padding-top:18px;border-top:1px solid var(--border);color:var(--muted);font-size:12px}
+.callout{border-left:4px solid var(--low);background:var(--surface);padding:10px 14px;border-radius:0 8px 8px 0;margin:12px 0}
+.callout.warn{border-left-color:var(--medium)}
+.callout.crit{border-left-color:var(--critical)}
+@media (max-width:900px){.layout{grid-template-columns:1fr;padding:14px;gap:14px}nav.toc{position:static;max-height:none}}
+@media print{
+  body{background:#fff;color:#000}
+  .layout{display:block;max-width:none;padding:0}
+  nav.toc,.theme-toggle,.filters{display:none}
+  .finding[open]{break-inside:avoid}
+  .finding>summary{cursor:default}
+}
+</style>
+</head><body><div class="layout">
+<nav class="toc" aria-label="Table of contents"><h2>Sections</h2><ol>
+<li><a href="#exec-summary">1. Executive summary</a></li>
+<li><a href="#scope">2. Scope & limitations</a></li>
+<li><a href="#trust-boundary">3. Trust boundary</a></li>
+<li><a href="#attack-surface">4. Attack surface</a></li>
+<li><a href="#findings">5. Findings</a></li>
+<li><a href="#remediation">6. Remediation roadmap</a></li>
+<li><a href="#false-positives">7. False positives</a></li>
+<li><a href="#regenerate">8. How generated</a></li>
+</ol></nav>
+<main>
+<header class="head"><h1>Security audit — repository</h1>
+<p>Evidence-based static review across 22 security domains. Findings are grounded in real code with file:line anchors. Every detected secret value is redacted.</p>
+<div class="head-row">
+<span class="badge domain">scope: full</span>
+<span class="badge domain">generated: 2026-06-09T13:42:22Z</span>
+<button class="theme-toggle" id="themeToggle" type="button">Theme: auto</button>
+</div></header>
+<section id="exec-summary"><h2>1. Executive summary</h2>
+<div class="card"><div class="score-row">
+<div class="score has-tilde" data-score="98">98<span style="font-size:18px;color:var(--muted);font-weight:500"> /100</span></div>
+<div class="score-meta"><span class="confidence" data-confidence="low">confidence: low</span></div>
+</div>
+<div class="counts">
+<span class="count count-CRITICAL">C: 0</span>
+<span class="count count-HIGH">H: 0</span>
+<span class="count count-MEDIUM">M: 0</span>
+<span class="count count-LOW">L: 1</span>
+<span class="count count-INFO">I: 0</span>
+<span class="count count-INFO">verify: 0</span>
+</div>
+<p>No CRITICAL or HIGH findings in CONFIRMED + LIKELY buckets. Review the `#false-positives` section to confirm nothing slipped through.</p>
+</div></section>
+<section id="scope"><h2>2. Scope &amp; limitations</h2><div class="card">
+<table><thead><tr><th>Aspect</th><th>Value</th></tr></thead><tbody>
+<tr><td>Scope used</td><td><code>full</code></td></tr>
+<tr><td>Candidates collected</td><td>16</td></tr>
+<tr><td>Findings rendered</td><td>7</td></tr>
+<tr><td>has_package_json</td><td>True</td></tr>
+<tr><td>lockfiles</td><td>[&#x27;package-lock.json&#x27;]</td></tr>
+<tr><td>dockerfile</td><td>False</td></tr>
+<tr><td>docker_compose</td><td>False</td></tr>
+<tr><td>next_config</td><td>False</td></tr>
+<tr><td>middleware</td><td>False</td></tr>
+<tr><td>github_workflows</td><td>False</td></tr>
+</tbody></table>
+<div class="callout warn"><strong>Limited analysis</strong> One or more key config files were missing or could not be read. The score is shown with a tilde (~) prefix when confidence is Low.</div>
+</div></section>
+<section id="trust-boundary"><h2>3. Trust boundary</h2><div class="card svg-card">
+
+<svg viewBox="0 0 880 240" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Trust boundary diagram">
+  <defs><style>
+    .b{fill:#1f262d;stroke:#30363d}.l{fill:#e6edf3;font:13px ui-sans-serif,system-ui,sans-serif}
+    .ll{fill:#8b949e;font:11px ui-monospace,monospace}.arr{stroke:#60a5fa;stroke-width:2;fill:none;marker-end:url(#a)}
+    .br{fill:#fb923c;font-weight:700}.cr{fill:#f85149;font-weight:700}
+  </style>
+  <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 0,10 z" fill="#60a5fa"/></marker></defs>
+  <rect class="b" x="20"  y="40" width="140" height="80" rx="10"/><text class="l" x="90" y="80" text-anchor="middle">Browser</text><text class="ll" x="90" y="100" text-anchor="middle">untrusted</text>
+  <rect class="b" x="220" y="40" width="140" height="80" rx="10"/><text class="l" x="290" y="80" text-anchor="middle">Edge / CDN</text><text class="ll" x="290" y="100" text-anchor="middle">cookies, headers</text>
+  <rect class="b" x="420" y="40" width="160" height="80" rx="10"/><text class="l" x="500" y="76" text-anchor="middle">App server</text><text class="ll" x="500" y="94" text-anchor="middle">routes · server actions</text><text class="ll" x="500" y="110" text-anchor="middle">env secrets live here</text>
+  <rect class="b" x="640" y="40" width="220" height="80" rx="10"/><text class="l" x="750" y="76" text-anchor="middle">External APIs · DB</text><text class="ll" x="750" y="94" text-anchor="middle">token-authenticated calls</text>
+  <path class="arr" d="M160,80 L220,80"/><path class="arr" d="M360,80 L420,80"/><path class="arr" d="M580,80 L640,80"/>
+  <text class="ll" x="190" y="74" text-anchor="middle">HTTPS</text>
+  <text class="ll" x="390" y="74" text-anchor="middle">verify auth</text>
+  <text class="ll" x="610" y="74" text-anchor="middle">token</text>
+  <text class="ll" x="440" y="160">Trust boundary 1: Browser ↔ Server. Never trust client input.</text>
+  <text class="ll" x="440" y="180">Trust boundary 2: App ↔ External. Validate URLs, allowlist hosts.</text>
+  <text class="ll" x="440" y="200">Boundary 3: Tenant isolation enforced in the App server layer.</text>
+</svg>
+
+<p style="margin-top:10px;color:var(--muted);font-size:13px">Generic template — replace with your real topology when finalizing the report.</p>
+</div></section>
+<section id="attack-surface"><h2>4. Attack surface</h2>
+<div class="card"><h3>npm audit summary</h3><table><thead><tr>
+<th>info</th>
+<th>low</th>
+<th>moderate</th>
+<th>high</th>
+<th>critical</th>
+</tr></thead><tbody><tr>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+</tr></tbody></table></div>
+<div class="card"><h3>Candidates by domain (raw scanner output)</h3>
+<table><thead><tr><th>Domain</th><th>Hits</th></tr></thead><tbody>
+<tr><td>xss</td><td>16</td></tr>
+</tbody></table></div>
+</section>
+<section id="findings"><h2>5. Findings</h2>
+<div class="filters"><fieldset><legend>severity</legend>
+<label><input type="checkbox" name="sev" value="CRITICAL" checked> CRITICAL</label>
+<label><input type="checkbox" name="sev" value="HIGH" checked> HIGH</label>
+<label><input type="checkbox" name="sev" value="MEDIUM" > MEDIUM</label>
+<label><input type="checkbox" name="sev" value="LOW" > LOW</label>
+<label><input type="checkbox" name="sev" value="INFO" > INFO</label>
+</fieldset>
+<fieldset><legend>domain</legend>
+<label><input type="checkbox" name="dom" value="csrf" checked> csrf</label>
+<label><input type="checkbox" name="dom" value="dependencies" checked> dependencies</label>
+<label><input type="checkbox" name="dom" value="headers" checked> headers</label>
+<label><input type="checkbox" name="dom" value="input-validation" checked> input-validation</label>
+<label><input type="checkbox" name="dom" value="network" checked> network</label>
+<label><input type="checkbox" name="dom" value="rate-limit" checked> rate-limit</label>
+<label><input type="checkbox" name="dom" value="xss" checked> xss</label>
+</fieldset>
+<label><input type="checkbox" id="showUnverified"> show unverified</label>
+<input type="text" id="q" placeholder="search…">
+</div>
+<details id="sec-005" class="finding sev-LOW" data-domain="xss" data-severity="LOW" data-confidence="high" data-status="confirmed">
+  <summary>
+    <span class="badge sev-LOW" aria-label="severity LOW">LOW</span>
+    <span class="badge conf-high" aria-label="confidence high">conf: high</span>
+    <span class="badge domain">xss</span>
+    <span class="badge status status-confirmed">confirmed</span>
+    <span class="title">Frontend uses innerHTML for all dynamic rendering (pattern fragility)</span>
+    <span class="anchor">public/app.js:379</span>
+  </summary>
+  <div class="body">
+    <h4>Vulnerable pattern</h4>
+    <p>All 16 dynamic UI updates use el.innerHTML = templateString. Template strings DO escape user data via escapeHtml(), but the pattern is fragile - a single forgotten escape in future change becomes a stored-XSS sink.</p>
+    <h4>Evidence</h4>
+    <div class="evidence-block">
+<span class="anchor">public/app.js:671</span>
+<pre class="evidence">
+if (filtered.length === 0) {
+  listEl.innerHTML = &#x27;&lt;div class=&quot;activity__empty&quot;&gt;// no subagents match this filter&lt;/div&gt;&#x27;;
+  return;
+}
+<span class="evidence-hit">listEl.innerHTML = filtered.map(renderAgentLibraryItem).join(&#x27;&#x27;);</span>
+}
+
+function renderAgentLibraryItem(a) {
+</pre>
+</div>
+    <h4>Impact</h4>
+    <p>Defense-in-depth gap. Current code is safe because every interpolation goes through escapeHtml(). First time someone forgets, payload executes in dashboard context.</p>
+    <h4>Exploit scenario</h4>
+    <p>Hypothetical: someone with write access to ~/.claude/projects/ adds malicious file with session title containing &lt;img src=x onerror=&#x27;fetch(...)&#x27;&gt;. If a future change omits escapeHtml around s.title, payload fires. Today&#x27;s code is safe.</p>
+    <h4>Fix</h4>
+    <p>Prefer textContent + element.appendChild over innerHTML where possible.</p>
+    <ol class="steps"><li>1. Audit each innerHTML site - static markup is fine.</li><li>2. For dynamic content, refactor to document.createElement + textContent.</li><li>3. As lighter alternative, add unit test that locks in escapeHtml&#x27;s contract.</li></ol>
+    <h4>Safe code</h4>
+    <pre class="safe">function appendEntry(parent, session) {
+  const article = document.createElement(&#x27;article&#x27;);
+  article.className = &#x27;entry&#x27;;
+  const title = document.createElement(&#x27;h2&#x27;);
+  title.textContent = session.projectName;
+  article.appendChild(title);
+  parent.appendChild(article);
+}</pre>
+    <h4>Verification</h4>
+    <ul><li>rg -n &#x27;innerHTML\s*=&#x27; public/  count current usage as baseline.</li><li>After refactor count should drop to &lt;= 5.</li></ul>
+    <h4>References</h4>
+    <ul><li><a href="https://cwe.mitre.org/data/definitions/79.html" rel="noopener noreferrer" target="_blank">https://cwe.mitre.org/data/definitions/79.html</a></li></ul>
+  </div>
+</details>
+</section>
+<section id="remediation"><h2>6. Remediation roadmap</h2><div class="card">
+<table><thead><tr><th>id</th><th>severity</th><th>title</th><th>effort</th><th>owner</th><th>done</th></tr></thead><tbody>
+<tr><td><a href="#sec-005">sec-005</a></td><td><span class="badge sev-LOW">LOW</span></td><td>Frontend uses innerHTML for all dynamic rendering (pattern fragility)</td><td>—</td><td>—</td><td><input type="checkbox" disabled></td></tr>
+</tbody></table>
+</div></section>
+<section id="false-positives"><h2>7. False positives &amp; needs verification</h2>
+<details id="sec-001" class="finding sev-HIGH" data-domain="network" data-severity="HIGH" data-confidence="high" data-status="informational">
+  <summary>
+    <span class="badge sev-HIGH" aria-label="severity HIGH">HIGH</span>
+    <span class="badge conf-high" aria-label="confidence high">conf: high</span>
+    <span class="badge domain">network</span>
+    <span class="badge status status-informational">informational</span>
+    <span class="title">HTTP server binds to all interfaces by default - LAN exposure</span>
+    <span class="anchor">server.js:249</span>
+  </summary>
+  <div class="body">
+    <h4>Vulnerable pattern</h4>
+    <p>server.listen(PORT, cb) with no host argument binds to :: / 0.0.0.0 by default in Node.js. The dashboard is then reachable from any device on the same LAN. Combined with the design choice of zero authentication (intentional &#x27;localhost only&#x27;), anyone on the same network can read the full token-stats history and active Claude Code sessions.</p>
+    <h4>Evidence</h4>
+    <div class="evidence-block">
+<span class="anchor">server.js:249</span>
+<pre class="evidence">
+watcher.on(&#x27;add&#x27;, onJsonlChange);
+watcher.on(&#x27;change&#x27;, onJsonlChange);
+watcher.on(&#x27;error&#x27;, (err) =&gt; console.error(&#x27;[watch] error:&#x27;, err.message));
+
+<span class="evidence-hit">server.listen(PORT, () =&gt; {
+  console.log(&#x27;\n  Agents Dashboard&#x27;);
+  console.log(&#x27;  Watching: &#x27; + projectsDir);
+  console.log(&#x27;  Open:     http://localhost:&#x27; + PORT + &#x27;\n&#x27;);
+});</span>
+
+process.on(&#x27;SIGINT&#x27;, () =&gt; {
+  console.log(&#x27;\n  Shutting down...&#x27;);
+</pre>
+</div>
+    <h4>Impact</h4>
+    <p>A roommate, coworker on shared WiFi, or attacker on a port-forwarded network can open http://&lt;your-ip&gt;:4173 and see every active Claude session, project name, AI-generated session titles (which leak prompt content), and total token usage. JSONL body content is not exposed but inferred metadata is.</p>
+    <h4>Exploit scenario</h4>
+    <p>Attacker on the same LAN scans port 4173, opens the URL in a browser, and reads the live dashboard. No credentials, no challenge. The /api/skill/:slug and /api/agent/:domain/:slug endpoints (now validated) still leak the full body of any skill or agent profile installed on the victim machine.</p>
+    <h4>Fix</h4>
+    <p>Bind the HTTP server explicitly to 127.0.0.1 (or ::1) so only the local machine can connect.</p>
+    <ol class="steps"><li>1. Change server.listen(PORT, () =&gt; {...}) to server.listen(PORT, &#x27;127.0.0.1&#x27;, () =&gt; {...}).</li><li>2. Optionally expose a HOST env var defaulting to 127.0.0.1 so power users can opt in to LAN access deliberately.</li><li>3. Document the binding choice in README so users understand the threat model.</li><li>4. Verify after fix: from another machine on the LAN, http://&lt;dev-machine-ip&gt;:4173 must time out or refuse the connection.</li></ol>
+    <h4>Safe code</h4>
+    <pre class="safe">const HOST = process.env.HOST || &#x27;127.0.0.1&#x27;;
+server.listen(PORT, HOST, () =&gt; {
+  console.log(&#x27;  Open:     http://&#x27; + HOST + &#x27;:&#x27; + PORT + &#x27;\n&#x27;);
+});</pre>
+    <h4>Verification</h4>
+    <ul><li>Get-NetTCPConnection -LocalPort 4173 -State Listen | Select LocalAddress  (expected: 127.0.0.1).</li><li>From a second machine on LAN, curl http://&lt;dev-ip&gt;:4173 must fail.</li></ul>
+    <h4>References</h4>
+    <ul><li><a href="https://nodejs.org/api/net.html#serverlistenoptions-callback" rel="noopener noreferrer" target="_blank">https://nodejs.org/api/net.html#serverlistenoptions-callback</a></li><li><a href="https://cwe.mitre.org/data/definitions/1327.html" rel="noopener noreferrer" target="_blank">https://cwe.mitre.org/data/definitions/1327.html</a></li></ul>
+  </div>
+</details>
+<details id="sec-002" class="finding sev-MEDIUM" data-domain="csrf" data-severity="MEDIUM" data-confidence="high" data-status="informational">
+  <summary>
+    <span class="badge sev-MEDIUM" aria-label="severity MEDIUM">MEDIUM</span>
+    <span class="badge conf-high" aria-label="confidence high">conf: high</span>
+    <span class="badge domain">csrf</span>
+    <span class="badge status status-informational">informational</span>
+    <span class="title">WebSocket endpoint accepts any origin (CSWSH)</span>
+    <span class="anchor">server.js:170</span>
+  </summary>
+  <div class="body">
+    <h4>Vulnerable pattern</h4>
+    <p>WebSocketServer constructed without verifyClient handler or Origin header check. A malicious webpage opened by the user in any browser tab can open a cross-origin WebSocket to ws://localhost:4173/ws and read the same snapshot data the legitimate dashboard receives. The browser does NOT apply same-origin policy to WebSocket connections - only to HTTP fetches.</p>
+    <h4>Evidence</h4>
+    <div class="evidence-block">
+<span class="anchor">server.js:170</span>
+<pre class="evidence">
+const server = createServer(app);
+<span class="evidence-hit">const wss = new WebSocketServer({ server, path: &#x27;/ws&#x27; });</span>
+
+const clients = new Set();
+
+</pre>
+</div>
+    <h4>Impact</h4>
+    <p>If the user visits an attacker-controlled webpage while the dashboard server runs locally, the attacker&#x27;s JS can connect to ws://localhost:4173/ws and stream all session data, token totals, project paths, and registry content out to a remote endpoint. Cross-Site WebSocket Hijacking (CSWSH).</p>
+    <h4>Exploit scenario</h4>
+    <p>Attacker hosts page with: new WebSocket(&#x27;ws://localhost:4173/ws&#x27;). When victim visits, connection succeeds (no origin check). Attacker&#x27;s JS reads onmessage payloads, JSON.parse them, POSTs full snapshot to a remote server. Victim sees nothing.</p>
+    <h4>Fix</h4>
+    <p>Reject WebSocket upgrades whose Origin header is not http://localhost:* / http://127.0.0.1:*.</p>
+    <ol class="steps"><li>1. Add verifyClient to WebSocketServer options that checks info.origin against an allowlist.</li><li>2. Allow null origin only if you intentionally support file:// or sandboxed contexts.</li><li>3. After fix, attempt WebSocket connection from a different page - it must be rejected with code 403.</li></ol>
+    <h4>Safe code</h4>
+    <pre class="safe">const ALLOWED_ORIGINS = new Set([
+  &#x27;http://localhost:&#x27; + PORT,
+  &#x27;http://127.0.0.1:&#x27; + PORT,
+]);
+const wss = new WebSocketServer({
+  server, path: &#x27;/ws&#x27;,
+  verifyClient: (info, cb) =&gt; {
+    const origin = info.origin || &#x27;&#x27;;
+    cb(ALLOWED_ORIGINS.has(origin), 403, &#x27;forbidden origin&#x27;);
+  },
+});</pre>
+    <h4>Verification</h4>
+    <ul><li>Open a non-localhost page, run new WebSocket(&#x27;ws://localhost:4173/ws&#x27;) in DevTools.</li><li>After fix: connection closes immediately with reason &#x27;forbidden origin&#x27;.</li></ul>
+    <h4>References</h4>
+    <ul><li><a href="https://cwe.mitre.org/data/definitions/346.html" rel="noopener noreferrer" target="_blank">https://cwe.mitre.org/data/definitions/346.html</a></li><li><a href="https://christian-schneider.net/papers/CrossSiteWebSocketHijacking.html" rel="noopener noreferrer" target="_blank">https://christian-schneider.net/papers/CrossSiteWebSocketHijacking.html</a></li></ul>
+  </div>
+</details>
+<details id="sec-003" class="finding sev-MEDIUM" data-domain="headers" data-severity="MEDIUM" data-confidence="high" data-status="informational">
+  <summary>
+    <span class="badge sev-MEDIUM" aria-label="severity MEDIUM">MEDIUM</span>
+    <span class="badge conf-high" aria-label="confidence high">conf: high</span>
+    <span class="badge domain">headers</span>
+    <span class="badge status status-informational">informational</span>
+    <span class="title">Missing security headers (CSP, X-Frame-Options, etc.)</span>
+    <span class="anchor">server.js:141</span>
+  </summary>
+  <div class="body">
+    <h4>Vulnerable pattern</h4>
+    <p>Express server uses express.static and JSON endpoints but never sets Content-Security-Policy, X-Frame-Options, X-Content-Type-Options, or Referrer-Policy. No helmet middleware. If an XSS bug were ever introduced, there is no second layer of defense.</p>
+    <h4>Evidence</h4>
+    <div class="evidence-block">
+<span class="anchor">server.js:141</span>
+<pre class="evidence">
+const app = express();
+<span class="evidence-hit">app.use(express.static(join(__dirname, &#x27;public&#x27;)));</span>
+
+app.get(&#x27;/api/sessions&#x27;, async (req, res) =&gt; {
+</pre>
+</div>
+    <h4>Impact</h4>
+    <p>Any future XSS regression in the frontend has no CSP backstop. Pages can be iframed by any site (clickjacking). Browsers may MIME-sniff served files.</p>
+    <h4>Exploit scenario</h4>
+    <p>Defense-in-depth gap. If a future contributor adds an unescaped innerHTML write of user-controlled data, an attacker who controls JSONL content can inject script. With CSP set to default-src &#x27;self&#x27;, inline script would be blocked.</p>
+    <h4>Fix</h4>
+    <p>Add helmet middleware with a conservative CSP suited for a local-only dashboard.</p>
+    <ol class="steps"><li>1. npm install helmet</li><li>2. Add app.use(helmet({...})) before any routes.</li><li>3. Set X-Frame-Options: DENY (no need to be framed).</li><li>4. Test that the dashboard still renders correctly with CSP enabled.</li></ol>
+    <h4>Safe code</h4>
+    <pre class="safe">import helmet from &#x27;helmet&#x27;;
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: [&quot;&#x27;self&#x27;&quot;],
+      scriptSrc: [&quot;&#x27;self&#x27;&quot;],
+      styleSrc: [&quot;&#x27;self&#x27;&quot;, &quot;&#x27;unsafe-inline&#x27;&quot;, &#x27;https://fonts.googleapis.com&#x27;],
+      fontSrc: [&quot;&#x27;self&#x27;&quot;, &#x27;https://fonts.gstatic.com&#x27;],
+      connectSrc: [&quot;&#x27;self&#x27;&quot;, &#x27;ws://localhost:&#x27; + PORT],
+    },
+  },
+}));</pre>
+    <h4>Verification</h4>
+    <ul><li>Open http://localhost:4173/, check Network tab response headers include Content-Security-Policy.</li><li>curl -I http://localhost:4173/ expects X-Frame-Options, X-Content-Type-Options.</li></ul>
+    <h4>References</h4>
+    <ul><li><a href="https://helmetjs.github.io/" rel="noopener noreferrer" target="_blank">https://helmetjs.github.io/</a></li><li><a href="https://cwe.mitre.org/data/definitions/693.html" rel="noopener noreferrer" target="_blank">https://cwe.mitre.org/data/definitions/693.html</a></li></ul>
+  </div>
+</details>
+<details id="sec-004" class="finding sev-LOW" data-domain="rate-limit" data-severity="LOW" data-confidence="high" data-status="informational">
+  <summary>
+    <span class="badge sev-LOW" aria-label="severity LOW">LOW</span>
+    <span class="badge conf-high" aria-label="confidence high">conf: high</span>
+    <span class="badge domain">rate-limit</span>
+    <span class="badge status status-informational">informational</span>
+    <span class="title">No rate limiting on API endpoints</span>
+    <span class="anchor">server.js:143</span>
+  </summary>
+  <div class="body">
+    <h4>Vulnerable pattern</h4>
+    <p>buildSnapshot() is expensive - walks JSONL projects directory, scans all files newer than 30 minutes, re-parses up to a thousand files in cache-miss case. An attacker hammering /api/sessions can DoS the server and block the event loop for legitimate users.</p>
+    <h4>Evidence</h4>
+    <div class="evidence-block">
+<span class="anchor">server.js:143</span>
+<pre class="evidence">
+app.use(express.static(join(__dirname, &#x27;public&#x27;)));
+<span class="evidence-hit">app.get(&#x27;/api/sessions&#x27;, async (req, res) =&gt; {
+  try {
+    res.json(await buildSnapshot());
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});</span>
+
+app.get(&#x27;/api/health&#x27;, (req, res) =&gt; {
+</pre>
+</div>
+    <h4>Impact</h4>
+    <p>Local DoS - any process on the machine can make dashboard unresponsive. Limited blast radius because localhost only (once HIGH finding is fixed).</p>
+    <h4>Exploit scenario</h4>
+    <p>Curl loop: while true; do curl http://localhost:4173/api/sessions &amp; done. Server queue-pressured; chokidar backlog; live updates stop.</p>
+    <h4>Fix</h4>
+    <p>Add express-rate-limit with 60 req/min per IP.</p>
+    <ol class="steps"><li>1. npm install express-rate-limit</li><li>2. Apply global limiter before /api routes</li><li>3. Acceptable for localhost-only; tighten if exposed.</li></ol>
+    <h4>Safe code</h4>
+    <pre class="safe">import rateLimit from &#x27;express-rate-limit&#x27;;
+const apiLimiter = rateLimit({ windowMs: 60_000, max: 60, standardHeaders: true });
+app.use(&#x27;/api&#x27;, apiLimiter);</pre>
+    <h4>Verification</h4>
+    <ul><li>for i in {1..100}; do curl -s -o /dev/null -w &#x27;%{http_code}\n&#x27; http://localhost:4173/api/health; done | sort | uniq -c - expect 429 for some.</li></ul>
+    <h4>References</h4>
+    <ul><li><a href="https://cwe.mitre.org/data/definitions/770.html" rel="noopener noreferrer" target="_blank">https://cwe.mitre.org/data/definitions/770.html</a></li></ul>
+  </div>
+</details>
+<details id="sec-006" class="finding sev-INFO" data-domain="dependencies" data-severity="INFO" data-confidence="high" data-status="informational">
+  <summary>
+    <span class="badge sev-INFO" aria-label="severity INFO">INFO</span>
+    <span class="badge conf-high" aria-label="confidence high">conf: high</span>
+    <span class="badge domain">dependencies</span>
+    <span class="badge status status-informational">informational</span>
+    <span class="title">No dependency vulnerabilities (positive observation)</span>
+    <span class="anchor">package.json:1</span>
+  </summary>
+  <div class="body">
+    <h4>Vulnerable pattern</h4>
+    <p>npm audit reports zero vulnerabilities across 73 transitive dependencies. Only 4 direct dependencies, all maintained.</p>
+    <h4>Evidence</h4>
+    <div class="evidence-block">
+<span class="anchor">package.json:11</span>
+<pre class="evidence">
+<span class="evidence-hit">&quot;dependencies&quot;: {
+  &quot;chokidar&quot;: &quot;^4.0.3&quot;,
+  &quot;express&quot;: &quot;^4.21.2&quot;,
+  &quot;js-yaml&quot;: &quot;^4.2.0&quot;,
+  &quot;ws&quot;: &quot;^8.18.0&quot;
+}</span>
+</pre>
+</div>
+    <h4>Impact</h4>
+    <p>Low supply-chain risk surface today.</p>
+    <h4>Exploit scenario</h4>
+    <p>N/A informational.</p>
+    <h4>Fix</h4>
+    <p>No action required. Re-run npm audit periodically.</p>
+    <ol class="steps"><li>1. Once repo is public, enable Dependabot in repo settings.</li><li>2. Optionally enable npm audit signatures verification in CI.</li></ol>
+    <h4>Verification</h4>
+    <ul><li>npm audit expected 0 vulnerabilities.</li></ul>
+    <h4>References</h4>
+    <ul><li><a href="https://docs.github.com/en/code-security/dependabot" rel="noopener noreferrer" target="_blank">https://docs.github.com/en/code-security/dependabot</a></li></ul>
+  </div>
+</details>
+<details id="sec-007" class="finding sev-INFO" data-domain="input-validation" data-severity="INFO" data-confidence="high" data-status="informational">
+  <summary>
+    <span class="badge sev-INFO" aria-label="severity INFO">INFO</span>
+    <span class="badge conf-high" aria-label="confidence high">conf: high</span>
+    <span class="badge domain">input-validation</span>
+    <span class="badge status status-informational">informational</span>
+    <span class="title">Path traversal in detail endpoints already mitigated</span>
+    <span class="anchor">server.js:155</span>
+  </summary>
+  <div class="body">
+    <h4>Vulnerable pattern</h4>
+    <p>Earlier code passed req.params directly to path.join() against the registry root, allowing %2F-encoded traversal. Now defended at two layers: SAFE_NAME_RE allowlist at the route, and isInsideDir() resolved-path check at the library function.</p>
+    <h4>Evidence</h4>
+    <div class="evidence-block">
+<span class="anchor">server.js:155</span>
+<pre class="evidence">
+<span class="evidence-hit">const SAFE_NAME_RE = /^[a-z0-9][a-z0-9_-]*$/i;
+
+app.get(&#x27;/api/skill/:slug&#x27;, async (req, res) =&gt; {
+  if (!SAFE_NAME_RE.test(req.params.slug)) {
+    return res.status(400).json({ error: &#x27;invalid slug&#x27; });
+  }</span>
+</pre>
+</div>
+    <h4>Impact</h4>
+    <p>None today - verified manually with /api/skill/..%2f..%2fetc%2fhosts returns 400 Bad Request.</p>
+    <h4>Exploit scenario</h4>
+    <p>N/A fixed in commit d129c1b.</p>
+    <h4>Fix</h4>
+    <p>Already done. Keep both layers when refactoring.</p>
+    <ol class="steps"><li>1. Do not remove SAFE_NAME_RE or isInsideDir() during future refactors.</li><li>2. New endpoints accepting file-name-like params must validate similarly.</li></ol>
+    <h4>Verification</h4>
+    <ul><li>curl http://localhost:4173/api/skill/..%2fpasswd  expect 400.</li></ul>
+    <h4>References</h4>
+    <ul><li><a href="https://cwe.mitre.org/data/definitions/22.html" rel="noopener noreferrer" target="_blank">https://cwe.mitre.org/data/definitions/22.html</a></li></ul>
+  </div>
+</details>
+</section>
+<section id="regenerate"><h2>8. How this was generated</h2><div class="card">
+<p>Re-run the skill to regenerate the report from scratch:</p>
+<pre class="safe">/security-audit full
+# or via the helper scripts:
+python scripts/security_scan.py --repo . --scope full --out candidates.json
+python scripts/render_security_audit.py --candidates candidates.json --out docs/security-audit.html [--findings findings.json]
+python scripts/verify_report.py docs/security-audit.html</pre>
+<p><strong>Generated:</strong> 2026-06-09T13:42:22Z</p>
+</div></section>
+<footer class="foot"><p>Every concrete claim is anchored to a file:line in the live source tree. Trust the code first when in doubt.</p></footer>
+</main></div>
+<script>
+(function(){
+  const KEY='security-audit-theme';
+  const html=document.documentElement;
+  const toggle=document.getElementById('themeToggle');
+  function effective(){
+    const t=localStorage.getItem(KEY);
+    if(t==='dark'||t==='light')return t;
+    return matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';
+  }
+  function apply(){
+    const t=effective();
+    html.setAttribute('data-theme',t);
+    toggle.textContent='Theme: '+(localStorage.getItem(KEY)||'auto');
+  }
+  toggle.addEventListener('click',function(){
+    const cur=localStorage.getItem(KEY);
+    let next;
+    if(cur==='light')next='dark';
+    else if(cur==='dark')next=null;
+    else next='light';
+    if(next)localStorage.setItem(KEY,next); else localStorage.removeItem(KEY);
+    apply();
+  });
+  apply();
+
+  // Scroll-spy
+  const links=Array.from(document.querySelectorAll('nav.toc a'));
+  const targets=links.map(function(a){return document.querySelector(a.getAttribute('href'));}).filter(Boolean);
+  function spy(){
+    let active=0;
+    for(let i=0;i<targets.length;i++){
+      if(targets[i].getBoundingClientRect().top-100<0)active=i;
+    }
+    links.forEach(function(l,i){l.classList.toggle('active',i===active);});
+  }
+  document.addEventListener('scroll',spy,{passive:true});
+  spy();
+
+  // Filters
+  const search=document.getElementById('q');
+  const sevBoxes=Array.from(document.querySelectorAll('input[name="sev"]'));
+  const domBoxes=Array.from(document.querySelectorAll('input[name="dom"]'));
+  const showUnverified=document.getElementById('showUnverified');
+  function apply2(){
+    const q=(search&&search.value||'').toLowerCase().trim();
+    const sevs=new Set(sevBoxes.filter(function(b){return b.checked;}).map(function(b){return b.value;}));
+    const doms=new Set(domBoxes.filter(function(b){return b.checked;}).map(function(b){return b.value;}));
+    const includeUnverified=showUnverified&&showUnverified.checked;
+    document.querySelectorAll('.finding').forEach(function(el){
+      const s=el.dataset.severity, d=el.dataset.domain, st=el.dataset.status;
+      let visible = sevs.has(s) && doms.has(d);
+      if(st==='needs-human-verification' || st==='informational'){
+        visible = visible && includeUnverified;
+      }
+      if(visible && q){
+        visible = el.textContent.toLowerCase().indexOf(q) >= 0;
+      }
+      el.style.display = visible ? '' : 'none';
+    });
+  }
+  [search,...sevBoxes,...domBoxes,showUnverified].forEach(function(el){
+    if(el)el.addEventListener('input',apply2);
+    if(el)el.addEventListener('change',apply2);
+  });
+  apply2();
+})();
+</script>
+</body></html>

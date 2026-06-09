@@ -1,4 +1,6 @@
 import express from 'express';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import { createServer } from 'node:http';
 import { WebSocketServer } from 'ws';
 import chokidar from 'chokidar';
@@ -136,8 +138,41 @@ async function buildSnapshot() {
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 4173;
+const HOST = process.env.HOST || '127.0.0.1';
 
 const app = express();
+
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        fontSrc: ["'self'"],
+        imgSrc: ["'self'", 'data:'],
+        connectSrc: [
+          "'self'",
+          `ws://localhost:${PORT}`,
+          `ws://127.0.0.1:${PORT}`,
+        ],
+        objectSrc: ["'none'"],
+        baseUri: ["'self'"],
+        frameAncestors: ["'none'"],
+      },
+    },
+    crossOriginEmbedderPolicy: false,
+  }),
+);
+
+const apiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use('/api', apiLimiter);
+
 app.use(express.static(join(__dirname, 'public')));
 
 app.get('/api/sessions', async (req, res) => {
@@ -173,7 +208,25 @@ app.get('/api/agent/:domain/:slug', async (req, res) => {
 });
 
 const server = createServer(app);
-const wss = new WebSocketServer({ server, path: '/ws' });
+
+const ALLOWED_WS_ORIGINS = new Set([
+  `http://localhost:${PORT}`,
+  `http://127.0.0.1:${PORT}`,
+  `http://[::1]:${PORT}`,
+]);
+
+const wss = new WebSocketServer({
+  server,
+  path: '/ws',
+  verifyClient: (info, cb) => {
+    const origin = info.origin || '';
+    if (!origin || ALLOWED_WS_ORIGINS.has(origin)) {
+      cb(true);
+    } else {
+      cb(false, 403, 'forbidden origin');
+    }
+  },
+});
 
 const clients = new Set();
 
@@ -246,11 +299,13 @@ watcher.on('add', onJsonlChange);
 watcher.on('change', onJsonlChange);
 watcher.on('error', (err) => console.error('[watch] error:', err.message));
 
-server.listen(PORT, () => {
+server.listen(PORT, HOST, () => {
+  const displayHost = HOST === '127.0.0.1' || HOST === '::1' ? 'localhost' : HOST;
   console.log(`\n  Agents Dashboard`);
   console.log(`  ─────────────────────────`);
   console.log(`  Watching: ${projectsDir}`);
-  console.log(`  Open:     http://localhost:${PORT}\n`);
+  console.log(`  Bind:     ${HOST}:${PORT}`);
+  console.log(`  Open:     http://${displayHost}:${PORT}\n`);
 });
 
 process.on('SIGINT', () => {

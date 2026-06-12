@@ -13,22 +13,48 @@ Works for anyone running Claude Code locally; no organization-specific assumptio
 ## Table of Contents
 
 1. [What it does](#what-it-does)
-2. [Quick start (this PC)](#quick-start-this-pc)
-3. [Install on a different PC](#install-on-a-different-pc)
-4. [How to launch the server](#how-to-launch-the-server)
-5. [Auto-start on boot](#auto-start-on-boot)
-6. [Configuration](#configuration)
-7. [Troubleshooting](#troubleshooting)
-8. [Architecture](#architecture)
+2. [Where Claude Code reads things from](#where-claude-code-reads-things-from)
+3. [Quick start](#quick-start)
+4. [Install on a different PC](#install-on-a-different-pc)
+5. [How to launch the server](#how-to-launch-the-server)
+6. [Auto-start on boot](#auto-start-on-boot)
+7. [Configuration](#configuration)
+8. [Troubleshooting](#troubleshooting)
+9. [Architecture](#architecture)
 
 ---
 
 ## What it does
 
 - Watches every Claude Code session JSONL file in real time
-- Renders one card per session: status, model, tokens, tool usage, current tool, sparkline history
+- Renders one card per session: status, model, tokens, tool usage, current tool, cost estimate, live burn rate (tok/min), and recent tool chain
+- Token-usage chart with tabbed range toggle: **hours** (last 24h with live current-hour pulse) · **days** (last 7d) · **weeks** (last 4w) · **months** (last 6m)
+- Discovers and lists installed skills and subagents — both global and project-scoped
 - Live updates via WebSocket — no manual refresh needed
 - 100% passive: does not modify any agent, skill, MCP server, or setting
+
+---
+
+## Where Claude Code reads things from
+
+The dashboard mirrors Claude Code's own conventions. There are **two scopes**:
+
+```
+~/.claude/                                  ← user-global (always available)
+├── projects/<project-hash>/<uuid>.jsonl     ← session data the dashboard reads
+├── agents/<domain>/<agent>.md               ← global subagents
+└── skills/<skill>/SKILL.md                  ← global skills (slash commands)
+
+<your-project>/.claude/                     ← project-scoped (only when cwd matches)
+├── agents/<domain>/<agent>.md               ← project subagents
+└── skills/<skill>/SKILL.md                  ← project skills
+```
+
+- **Session JSONLs** (`~/.claude/projects/`) are the dashboard's primary data source — every live card, token chart, and cost figure is derived from these files.
+- **Global skills/agents** are listed under the `▸ skills` and `▸ agents` tabs as-is.
+- **Project-scoped skills/agents** show up under the `▸ projects` tab, grouped by project. For this to work, set `PROJECTS_ROOT` to the folder where your code lives (default: `~/Projects`) — see [Projects tab](#projects-tab) below.
+
+Nothing is written to these locations — the dashboard is read-only.
 
 ---
 
@@ -419,26 +445,29 @@ Logs print to the terminal where you started the server.
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│  Claude Code CLI                                        │
-│  └─ writes JSONL → ~/.claude/projects/<project>/        │
-└──────────────────────────┬──────────────────────────────┘
-                           │ file events
+┌──────────────────────────────────────────────────────────────┐
+│  Claude Code CLI                                             │
+│  └─ writes JSONL → ~/.claude/projects/<project>/<uuid>.jsonl │
+└──────────────────────────┬───────────────────────────────────┘
+                           │ file events (chokidar)
                            ▼
-┌─────────────────────────────────────────────────────────┐
-│  server.js  (Node.js + Express + ws + chokidar)         │
-│  ├─ lib/sessions.js  parses JSONL → session objects     │
-│  ├─ chokidar watcher debounces file changes             │
-│  └─ WebSocket broadcasts updates to all clients         │
-└──────────────────────────┬──────────────────────────────┘
-                           │ HTTP + WS on :4173
+┌──────────────────────────────────────────────────────────────┐
+│  server.js  (Node.js + Express + ws + chokidar)              │
+│  ├─ lib/sessions.js  parse JSONL → session objects           │
+│  │                   adds costUsd + tokensLast5Min           │
+│  ├─ lib/stats.js     aggregate tokens → 24h/7d/4w/6m         │
+│  ├─ lib/pricing.js   Anthropic model pricing → cost          │
+│  ├─ lib/registry.js  read .claude/skills + .claude/agents    │
+│  └─ ws broadcasts snapshots every 5 s + on file change       │
+└──────────────────────────┬───────────────────────────────────┘
+                           │ HTTP + WS on :4173 (localhost)
                            ▼
-┌─────────────────────────────────────────────────────────┐
-│  Browser  (vanilla JS + Tailwind via CDN)               │
-│  ├─ public/index.html  shell + filters + header         │
-│  ├─ public/app.js      WS client + card rendering       │
-│  └─ public/style.css   card animations + theme          │
-└─────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│  Browser  (vanilla JS, no framework)                         │
+│  ├─ public/index.html  layout + chart range tabs             │
+│  ├─ public/app.js      WS client + card renderer + toggle    │
+│  └─ public/style.css   terminal-style theme + animations     │
+└──────────────────────────────────────────────────────────────┘
 ```
 
 ### Project layout
@@ -447,11 +476,17 @@ Logs print to the terminal where you started the server.
 agents-dashboard/
 ├── server.js              Express + WebSocket + chokidar watcher
 ├── lib/
-│   └── sessions.js        JSONL parser, status logic, mtime cache
+│   ├── sessions.js        JSONL parser, status logic, cost/burn aggregation
+│   ├── stats.js           token aggregation: 24h / days / weeks / months
+│   ├── pricing.js         Anthropic model pricing (used for cost estimates)
+│   ├── processes.js       OS-level claude process detection
+│   ├── registry.js        skill / agent / project library discovery
+│   └── utils.js           shared helpers (day keys, project name decoding)
 ├── public/
-│   ├── index.html         Layout, Tailwind config, header
-│   ├── app.js             WS client, card renderer, filters
-│   └── style.css          Card styles, animations, theme
+│   ├── index.html         layout, header, chart range tabs
+│   ├── app.js             WS client, card renderer, chart toggle
+│   └── style.css          card styles, animations, chart theme
+├── tests/                 node:test suites for the lib/ modules
 ├── start.bat              Windows quick-launch
 ├── package.json
 ├── package-lock.json
@@ -474,9 +509,14 @@ Per session, the parser walks every JSONL line and accumulates:
 - **Identity:** sessionId, cwd, project name, git branch, generated title
 - **Model:** latest `message.model` value
 - **Tokens:** input + output + cache (read + create), summed across all assistant messages
-- **Tools:** every `tool_use` content block — name histogram + chronological history
+- **Cost (USD):** `tokens × model price` from `lib/pricing.js` (Opus / Sonnet / Haiku, default + 1M-context variants)
+- **Burn rate:** tokens consumed in the last 5 minutes, recomputed on every refresh
+- **Tools:** every `tool_use` content block — name histogram + chronological history (last 50)
 - **Status:** derived from time-since-last-activity and pending tool calls
 - **Messages:** user vs assistant counts
+- **Subagents / Skills:** every `Task` and `Skill` invocation with timestamps and completion state
+
+Across all sessions, `lib/stats.js` rolls things up into hourly / daily / weekly / monthly token buckets that feed the token-statistics panel.
 
 ---
 

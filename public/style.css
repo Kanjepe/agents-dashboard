@@ -800,6 +800,10 @@ code {
   font-weight: 500;
 }
 
+.metric--cost {
+  cursor: help;
+}
+
 .metric--cost .metric__val {
   color: var(--green);
   text-shadow: 0 0 4px var(--green-glow);
@@ -2130,6 +2134,110 @@ code {
 
 .chart24__hour {
   cursor: help;
+}
+
+/* Pricing reference */
+.pricing-ref {
+  margin-top: 1.5rem;
+  padding: 0.6rem 0.8rem;
+  background: var(--bg-1);
+  border: 1px dashed var(--border);
+  font-size: 0.72rem;
+}
+
+.pricing-ref__head {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--text-dim);
+  letter-spacing: 0.05em;
+  user-select: none;
+}
+
+.pricing-ref__head::-webkit-details-marker {
+  display: none;
+}
+
+.pricing-ref__head:hover {
+  color: var(--text-bright);
+}
+
+.pricing-ref__chevron {
+  display: inline-block;
+  transition: transform 0.15s;
+  color: var(--green);
+}
+
+.pricing-ref[open] .pricing-ref__chevron {
+  transform: rotate(90deg);
+}
+
+.pricing-ref__title {
+  font-weight: 500;
+}
+
+.pricing-ref__body {
+  margin-top: 0.7rem;
+  padding-top: 0.6rem;
+  border-top: 1px dashed var(--border);
+}
+
+.pricing-ref__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.pricing-ref__table th,
+.pricing-ref__table td {
+  text-align: right;
+  padding: 0.25rem 0.6rem;
+  color: var(--text);
+}
+
+.pricing-ref__table th {
+  color: var(--text-dim);
+  font-weight: 500;
+  text-transform: lowercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid var(--border);
+}
+
+.pricing-ref__table td:first-child,
+.pricing-ref__table th:first-child {
+  text-align: left;
+}
+
+.pricing-ref__model {
+  color: var(--text-bright);
+  font-weight: 500;
+}
+
+.pricing-ref__table tbody tr:hover {
+  background: var(--bg-2);
+}
+
+.pricing-ref__note {
+  margin: 0.8rem 0 0;
+  font-size: 0.65rem;
+  line-height: 1.55;
+  color: var(--text-dim);
+  opacity: 0.85;
+}
+
+.pricing-ref__note code {
+  background: var(--bg-2);
+  padding: 1px 5px;
+  border-radius: 2px;
+  font-size: 0.62rem;
+  color: var(--green);
+}
+
+.pricing-ref__note strong {
+  color: var(--text-bright);
 }
 
 /* Top consumers — three columns */

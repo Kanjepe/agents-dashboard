@@ -192,9 +192,13 @@ function renderSessionMetrics(s) {
   const burnStr = burnTokPerMin > 0
     ? `${burn.num}${burn.unit}/min <span class="metric__usd">≈ ${fmtCost(burnUsdPerMin)}/min</span>`
     : 'idle';
+  const rate = rateForModel(s.model, stats?.pricing);
+  const costTitle = rate
+    ? `Model: ${s.model || 'unknown'} (${rate.label})\nRates per 1M tokens:\n  input: ${fmtRate(rate.input)}\n  output: ${fmtRate(rate.output)}\n  cache read: ${fmtRate(rate.cacheRead)}\n  cache create: ${fmtRate(rate.cacheCreate)}\n\nClick the 'pricing reference' panel below for the full table.`
+    : `Model: ${s.model || 'unknown'}`;
   return `
     <div class="entry__metrics" aria-label="Session metrics">
-      <span class="metric metric--cost">
+      <span class="metric metric--cost" title="${escapeHtml(costTitle)}">
         <span class="metric__label">cost</span>
         <span class="metric__val">${cost}<span class="metric__sub">total</span></span>
       </span>
@@ -594,6 +598,73 @@ function renderStats() {
   renderTop(topTodayEl, stats.topToday);
   renderTop(topWeekEl, stats.topWeek);
   renderTop(topMonthEl, stats.topMonth);
+  renderPricingRef(stats.pricing);
+}
+
+const PRICING_FALLBACK = [
+  { family: 'opus', label: 'opus 4.x', input: 15, output: 75, cacheRead: 1.5, cacheCreate: 18.75 },
+  { family: 'sonnet', label: 'sonnet 4.x', input: 3, output: 15, cacheRead: 0.3, cacheCreate: 3.75 },
+  { family: 'haiku', label: 'haiku 4.5', input: 1, output: 5, cacheRead: 0.1, cacheCreate: 1.25 },
+];
+
+function familyForModel(model) {
+  if (!model) return null;
+  const m = String(model).toLowerCase();
+  const has1m = m.includes('[1m]');
+  if (m.includes('opus')) return has1m ? 'opus-1m' : 'opus';
+  if (m.includes('sonnet')) return has1m ? 'sonnet-1m' : 'sonnet';
+  if (m.includes('haiku-3.5') || m.includes('haiku-3-5')) return 'haiku-3.5';
+  if (m.includes('haiku')) return 'haiku';
+  return null;
+}
+
+function rateForModel(model, pricing) {
+  const table = pricing && pricing.length ? pricing : PRICING_FALLBACK;
+  const family = familyForModel(model);
+  return table.find((p) => p.family === family) || table.find((p) => p.family === 'sonnet') || null;
+}
+
+function fmtRate(usd) {
+  if (usd >= 1) return `$${usd.toFixed(usd >= 10 ? 0 : 2)}`;
+  return `$${usd.toFixed(2)}`;
+}
+
+function renderPricingRef(pricing) {
+  const bodyEl = document.getElementById('pricing-ref-body');
+  if (!bodyEl) return;
+  const table = pricing && pricing.length ? pricing : PRICING_FALLBACK;
+  const rows = table
+    .map(
+      (p) => `
+        <tr>
+          <td class="pricing-ref__model">${escapeHtml(p.label)}</td>
+          <td>${fmtRate(p.input)}</td>
+          <td>${fmtRate(p.output)}</td>
+          <td>${fmtRate(p.cacheRead)}</td>
+          <td>${fmtRate(p.cacheCreate)}</td>
+        </tr>
+      `,
+    )
+    .join('');
+  bodyEl.innerHTML = `
+    <table class="pricing-ref__table">
+      <thead>
+        <tr>
+          <th>model</th>
+          <th>input</th>
+          <th>output</th>
+          <th>cache read</th>
+          <th>cache create</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <p class="pricing-ref__note">
+      Cenas USD par <strong>1 000 000 tokeniem</strong>. Avots: Anthropic publiskās cenas.<br>
+      Formula: <code>cost = (input × rate + output × rate + cache_read × rate + cache_create × rate) / 1 000 000</code><br>
+      Katra ziņojuma izmaksa tiek aprēķināta ar tā konkrētā modeļa likmi (sesijas vidū iespējams modeļa maiņa — tādā gadījumā summas ir korektas pa segmentiem).
+    </p>
+  `;
 }
 
 function hourToAmPm(h) {

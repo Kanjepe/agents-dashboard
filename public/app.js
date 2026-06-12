@@ -22,6 +22,9 @@ const totalTodayDateEl = document.getElementById('total-today-date');
 const totalWeekHintEl = document.getElementById('total-week-hint');
 const totalMonthHintEl = document.getElementById('total-month-hint');
 const chart24El = document.getElementById('chart24');
+const totalTodayCostEl = document.getElementById('total-today-cost');
+const totalWeekCostEl = document.getElementById('total-week-cost');
+const totalMonthCostEl = document.getElementById('total-month-cost');
 const chartTitleEl = document.getElementById('chart-title');
 const chartTabs = document.querySelectorAll('.chart-tab');
 let chartRange = 'hours';
@@ -180,17 +183,20 @@ function fmtCost(usd) {
 function renderSessionMetrics(s) {
   const cost = fmtCost(s.costUsd || 0);
   const burnTokPerMin = (s.tokensLast5Min || 0) / 5;
+  const burnUsdPerMin = (s.costLast5Min || 0) / 5;
   const burn = fmtTokens(Math.round(burnTokPerMin));
   let burnClass = 'metric--idle';
   if (burnTokPerMin > 50000) burnClass = 'metric--hot';
   else if (burnTokPerMin > 10000) burnClass = 'metric--fast';
   else if (burnTokPerMin > 1000) burnClass = 'metric--normal';
-  const burnStr = burnTokPerMin > 0 ? `${burn.num}${burn.unit}/min` : 'idle';
+  const burnStr = burnTokPerMin > 0
+    ? `${burn.num}${burn.unit}/min <span class="metric__usd">≈ ${fmtCost(burnUsdPerMin)}/min</span>`
+    : 'idle';
   return `
     <div class="entry__metrics" aria-label="Session metrics">
       <span class="metric metric--cost">
         <span class="metric__label">cost</span>
-        <span class="metric__val">${cost}</span>
+        <span class="metric__val">${cost}<span class="metric__sub">total</span></span>
       </span>
       <span class="metric ${burnClass}">
         <span class="metric__label">burn</span>
@@ -565,6 +571,10 @@ function renderStats() {
   totalWeekEl.textContent = fmtTokensCompact(stats.week);
   totalMonthEl.textContent = fmtTokensCompact(stats.month);
 
+  if (totalTodayCostEl) totalTodayCostEl.textContent = fmtCost(stats.todayCost || 0);
+  if (totalWeekCostEl) totalWeekCostEl.textContent = fmtCost(stats.weekCost || 0);
+  if (totalMonthCostEl) totalMonthCostEl.textContent = fmtCost(stats.monthCost || 0);
+
   totalTodayDateEl.textContent = stats.todayDate || '';
   totalWeekHintEl.textContent = `from ${stats.weekStart}`;
   totalMonthHintEl.textContent = `from ${stats.monthStart}`;
@@ -698,11 +708,13 @@ function renderTop(el, list) {
     .map((p, i) => {
       const rank = String(i + 1).padStart(2, '0');
       const widthPct = Math.max(2, (p.tokens / max) * 100);
+      const cost = p.cost && p.cost > 0 ? `<span class="top__cost">${fmtCost(p.cost)}</span>` : '';
       return `
         <li class="top__item">
           <span class="top__rank">${rank}</span>
           <span class="top__name" title="${escapeHtml(p.name)}">${escapeHtml(p.name)}</span>
           <span class="top__tokens">${fmtTokensCompact(p.tokens)}</span>
+          ${cost}
           <span class="top__bar"><span style="width:${widthPct.toFixed(1)}%"></span></span>
         </li>
       `;

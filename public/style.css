@@ -783,6 +783,23 @@ code {
   color: var(--text-bright);
 }
 
+.metric__sub {
+  font-size: 0.55rem;
+  font-weight: 400;
+  margin-left: 0.3rem;
+  opacity: 0.55;
+  text-transform: lowercase;
+  letter-spacing: 0.05em;
+}
+
+.metric__usd {
+  font-size: 0.62rem;
+  margin-left: 0.4rem;
+  color: var(--green);
+  opacity: 0.85;
+  font-weight: 500;
+}
+
 .metric--cost .metric__val {
   color: var(--green);
   text-shadow: 0 0 4px var(--green-glow);
@@ -1956,6 +1973,17 @@ code {
   font-feature-settings: "tnum" 1;
 }
 
+.total__cost {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--green);
+  text-shadow: 0 0 4px var(--green-glow);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
 /* Section heading */
 .sec-head {
   margin: 0 0 0.8rem;
@@ -2132,12 +2160,22 @@ code {
 
 .top__item {
   display: grid;
-  grid-template-columns: 1.2rem 1fr auto;
-  gap: 0.5rem;
+  grid-template-columns: 1.2rem 1fr auto auto;
+  gap: 0.4rem 0.5rem;
   align-items: baseline;
   font-size: 0.78rem;
   position: relative;
   padding-bottom: 0.35rem;
+}
+
+.top__cost {
+  color: var(--green);
+  text-shadow: 0 0 3px var(--green-glow);
+  font-feature-settings: "tnum" 1;
+  font-weight: 500;
+  font-size: 0.7rem;
+  white-space: nowrap;
+  opacity: 0.9;
 }
 
 .top__rank {
@@ -2163,7 +2201,7 @@ code {
 }
 
 .top__bar {
-  grid-column: 2 / 4;
+  grid-column: 2 / 5;
   height: 3px;
   background: var(--bg-2);
   position: relative;

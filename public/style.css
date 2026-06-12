@@ -753,37 +753,100 @@ code {
   text-shadow: 0 0 6px var(--amber-glow);
 }
 
-/* Pulse */
-.entry__pulse {
+/* Session metrics (cost + burn rate) */
+.entry__metrics {
   display: flex;
-  align-items: flex-end;
-  gap: 1px;
-  height: 18px;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+  align-items: baseline;
   margin: 0;
+  padding: 0.2rem 0;
+  font-size: 0.72rem;
 }
 
-.entry__pulse .bar {
-  flex: 1;
-  min-width: 4px;
-  background: var(--green);
-  opacity: 0.55;
+.metric {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
 }
 
-.entry[data-status="waiting"] .entry__pulse .bar {
-  background: var(--amber);
+.metric__label {
+  text-transform: lowercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+  opacity: 0.7;
 }
-.entry[data-status="paused"] .entry__pulse .bar {
-  background: var(--blue);
+
+.metric__val {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-bright);
+}
+
+.metric--cost .metric__val {
+  color: var(--green);
+  text-shadow: 0 0 4px var(--green-glow);
+}
+
+.metric--hot .metric__val {
+  color: var(--amber);
+  text-shadow: 0 0 6px var(--amber-glow);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+.metric--fast .metric__val {
+  color: var(--amber);
+}
+.metric--normal .metric__val {
+  color: var(--green);
+  opacity: 0.85;
+}
+.metric--idle .metric__val {
+  color: var(--text-dim);
+  opacity: 0.6;
+}
+
+/* Recent tool chain */
+.entry__chain {
+  margin: 0;
+  padding: 0.25rem 0;
+  font-size: 0.68rem;
+  color: var(--text-dim);
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.entry__chain--empty {
+  font-style: italic;
+  opacity: 0.5;
+}
+
+.chain__label {
+  text-transform: lowercase;
+  letter-spacing: 0.06em;
+  opacity: 0.65;
+  margin-right: 0.35rem;
+}
+
+.chain__tool {
+  color: var(--text-bright);
+  font-weight: 500;
+  padding: 0 1px;
+}
+
+.chain__arrow {
+  margin: 0 0.3rem;
+  color: var(--text-dim);
+  opacity: 0.6;
+}
+
+.chain__sep {
+  margin: 0 0.4rem;
   opacity: 0.4;
 }
-.entry[data-status="idle"] .entry__pulse .bar {
-  background: var(--text-dim);
-  opacity: 0.3;
-}
 
-.entry__pulse .bar--empty {
-  background: var(--border);
-  opacity: 0.4;
+.chain__age {
+  opacity: 0.7;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Footer */
@@ -1904,82 +1967,141 @@ code {
   text-shadow: 0 0 5px var(--green-glow);
 }
 
-/* 7-day chart */
+/* 24-hour rolling chart */
 .chart-wrap {
   margin-bottom: 2.25rem;
 }
 
-.chart7 {
+.chart-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.chart-tabs {
+  display: inline-flex;
+  gap: 2px;
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  padding: 2px;
+}
+
+.chart-tab {
+  background: transparent;
+  border: 0;
+  padding: 0.25rem 0.75rem;
+  font-family: inherit;
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+  cursor: pointer;
+  text-transform: lowercase;
+  transition: color 0.15s, background 0.15s;
+}
+
+.chart-tab:hover {
+  color: var(--text-bright);
+}
+
+.chart-tab[data-active="true"] {
+  background: var(--green);
+  color: var(--bg-0);
+  font-weight: 700;
+  box-shadow: 0 0 4px var(--green-glow);
+}
+
+.chart24 {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 0.5rem;
+  grid-template-columns: repeat(24, 1fr);
+  gap: 3px;
   align-items: end;
   height: 130px;
   padding: 0.6rem 0.8rem;
   background: var(--bg-1);
   border: 1px solid var(--border);
+  transition: grid-template-columns 0.3s ease;
 }
 
-.chart7__day {
+.chart24__hour {
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.25rem;
   height: 100%;
   position: relative;
 }
 
-.chart7__bar {
+.chart24__bar {
   width: 100%;
   background: var(--green);
-  box-shadow: 0 0 6px var(--green-glow);
+  box-shadow: 0 0 4px var(--green-glow);
   min-height: 2px;
   transition: height 0.5s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
 }
 
-.chart7__bar--zero {
+.chart24__bar--zero {
   background: var(--border);
   box-shadow: none;
 }
 
-.chart7__bar--today {
+.chart24__bar--now {
   background: var(--amber);
   box-shadow: 0 0 8px var(--amber-glow);
+  animation: pulseNow 1.6s ease-in-out infinite;
 }
 
-.chart7__val {
+@keyframes pulseNow {
+  0%, 100% { box-shadow: 0 0 4px var(--amber-glow); }
+  50% { box-shadow: 0 0 12px var(--amber-glow); }
+}
+
+.chart24__val {
   position: absolute;
   bottom: 100%;
   left: 50%;
   transform: translateX(-50%);
-  margin-bottom: 4px;
-  font-size: 0.6rem;
+  margin-bottom: 3px;
+  font-size: 0.52rem;
   color: var(--text-dim);
   white-space: nowrap;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.04em;
   font-feature-settings: "tnum" 1;
 }
 
-.chart7__bar--today + .chart7__val,
-.chart7__bar:hover + .chart7__val {
+.chart24__bar--now + .chart24__val,
+.chart24__bar:hover + .chart24__val {
   color: var(--text-bright);
 }
 
-.chart7__label {
-  font-size: 0.62rem;
+.chart24__label {
+  font-size: 0.52rem;
   color: var(--text-dim);
-  text-transform: lowercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.03em;
   font-feature-settings: "tnum" 1;
   text-align: center;
-  margin-top: 0.2rem;
+  margin-top: 0.15rem;
+  opacity: 0.65;
 }
 
-.chart7__label--today {
+.chart24__label--now {
   color: var(--amber);
   font-weight: 700;
+  opacity: 1;
+}
+
+.chart24__period {
+  font-size: 0.42rem;
+  opacity: 0.7;
+  margin-left: 1px;
+  text-transform: lowercase;
+}
+
+.chart24__hour {
+  cursor: help;
 }
 
 /* Top consumers — three columns */

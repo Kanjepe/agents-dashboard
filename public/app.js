@@ -21,7 +21,20 @@ const totalMonthBarEl = document.getElementById('total-month-bar');
 const totalTodayDateEl = document.getElementById('total-today-date');
 const totalWeekHintEl = document.getElementById('total-week-hint');
 const totalMonthHintEl = document.getElementById('total-month-hint');
-const chart7El = document.getElementById('chart7');
+const chart24El = document.getElementById('chart24');
+const chartTitleEl = document.getElementById('chart-title');
+const chartTabs = document.querySelectorAll('.chart-tab');
+let chartRange = 'hours';
+
+chartTabs.forEach((btn) => {
+  btn.addEventListener('click', () => {
+    chartRange = btn.dataset.range;
+    chartTabs.forEach((b) => {
+      b.dataset.active = String(b.dataset.range === chartRange);
+    });
+    renderChart24();
+  });
+});
 const topTodayEl = document.getElementById('top-today');
 const topWeekEl = document.getElementById('top-week');
 const topMonthEl = document.getElementById('top-month');
@@ -154,6 +167,56 @@ function shortModel(model) {
   if (!model || model === 'unknown') return '—';
   const trimmed = model.replace(/^claude-/, '').replace(/-(\d{8})$/, '');
   return trimmed.replace(/-/g, ' ');
+}
+
+function fmtCost(usd) {
+  if (!usd || usd <= 0) return '$0';
+  if (usd < 0.01) return '<$0.01';
+  if (usd < 10) return `$${usd.toFixed(2)}`;
+  if (usd < 100) return `$${usd.toFixed(1)}`;
+  return `$${Math.round(usd)}`;
+}
+
+function renderSessionMetrics(s) {
+  const cost = fmtCost(s.costUsd || 0);
+  const burnTokPerMin = (s.tokensLast5Min || 0) / 5;
+  const burn = fmtTokens(Math.round(burnTokPerMin));
+  let burnClass = 'metric--idle';
+  if (burnTokPerMin > 50000) burnClass = 'metric--hot';
+  else if (burnTokPerMin > 10000) burnClass = 'metric--fast';
+  else if (burnTokPerMin > 1000) burnClass = 'metric--normal';
+  const burnStr = burnTokPerMin > 0 ? `${burn.num}${burn.unit}/min` : 'idle';
+  return `
+    <div class="entry__metrics" aria-label="Session metrics">
+      <span class="metric metric--cost">
+        <span class="metric__label">cost</span>
+        <span class="metric__val">${cost}</span>
+      </span>
+      <span class="metric ${burnClass}">
+        <span class="metric__label">burn</span>
+        <span class="metric__val">${burnStr}</span>
+      </span>
+    </div>
+  `;
+}
+
+const CHAIN_LIMIT = 6;
+function renderToolChain(history) {
+  if (!history || history.length === 0) {
+    return '<p class="entry__chain entry__chain--empty">no tool activity yet</p>';
+  }
+  const last = history.slice(-CHAIN_LIMIT);
+  const names = last.map((t) => `<span class="chain__tool">${escapeHtml(t.name)}</span>`);
+  const joined = names.join('<span class="chain__arrow">→</span>');
+  const lastT = new Date(history[history.length - 1].t).getTime();
+  const ageSec = Math.max(0, Math.floor((Date.now() - lastT) / 1000));
+  return `
+    <p class="entry__chain" aria-label="Recent tool activity">
+      <span class="chain__label">recent:</span> ${joined}
+      <span class="chain__sep">·</span>
+      <span class="chain__age">${fmtAge(ageSec)} ago</span>
+    </p>
+  `;
 }
 
 function sparklineBars(history) {
@@ -300,6 +363,9 @@ function renderEntry(s, index) {
     currentLine = `<p class="entry__current">${verb} ${detail}</p>`;
   }
 
+  const metricsLine = renderSessionMetrics(s);
+  const toolChain = renderToolChain(s.toolHistory);
+
   return `
     <article class="entry" data-status="${status}" data-session="${safeSid}">
       <header class="entry__head">
@@ -341,9 +407,8 @@ function renderEntry(s, index) {
 
         ${currentLine}
 
-        <div class="entry__pulse" aria-label="Tool activity">
-          ${sparklineBars(s.toolHistory)}
-        </div>
+        ${metricsLine}
+        ${toolChain}
 
         <footer class="entry__foot">
           ${pills ? `<span class="entry__pills">${pills}</span>` : '<span></span>'}
@@ -355,6 +420,7 @@ function renderEntry(s, index) {
 }
 
 function sessionSignature(s) {
+  const recentTools = (s.toolHistory || []).slice(-CHAIN_LIMIT).map((t) => t.name).join('>');
   return [
     s.status,
     s.title || '',
@@ -369,8 +435,10 @@ function sessionSignature(s) {
     s.userMessageCount || 0,
     s.assistantMessageCount || 0,
     s.durationSeconds || 0,
-    s.toolHistory?.length || 0,
     Object.keys(s.toolUsage || {}).sort().join(','),
+    Math.round((s.costUsd || 0) * 100),
+    Math.round((s.tokensLast5Min || 0) / 1000),
+    recentTools,
   ].join('|');
 }
 
@@ -512,36 +580,107 @@ function renderStats() {
     statsMetaEl.textContent = `${stats.fileCount} files scanned`;
   }
 
-  renderChart7();
+  renderChart24();
   renderTop(topTodayEl, stats.topToday);
   renderTop(topWeekEl, stats.topWeek);
   renderTop(topMonthEl, stats.topMonth);
 }
 
-function renderChart7() {
-  if (!stats || !chart7El) return;
-  const days = stats.last7Days || [];
-  if (days.length === 0) {
-    chart7El.innerHTML = '<div class="top__empty">no data yet</div>';
+function hourToAmPm(h) {
+  const period = h < 12 ? 'a' : 'p';
+  const display = h % 12 === 0 ? 12 : h % 12;
+  return { display, period };
+}
+
+const MONTH_SHORT = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+
+function chartItemsForRange() {
+  if (!stats) return { items: [], title: '', cols: 24 };
+  if (chartRange === 'days') {
+    const days = stats.last7Days || [];
+    return {
+      title: '▸ last 7 days',
+      cols: days.length || 7,
+      items: days.map((d) => ({
+        tokens: d.tokens,
+        isCurrent: d.isCurrent,
+        label: weekdayShort(d.date),
+        tooltip: `${d.date} · ${fmtTokensCompact(d.tokens)} tokens`,
+      })),
+    };
+  }
+  if (chartRange === 'weeks') {
+    const weeks = stats.last4Weeks || [];
+    return {
+      title: '▸ last 4 weeks',
+      cols: weeks.length || 4,
+      items: weeks.map((w) => ({
+        tokens: w.tokens,
+        isCurrent: w.isCurrent,
+        label: `wk ${fmtDateShort(w.weekStart)}`,
+        tooltip: `week of ${w.weekStart} · ${fmtTokensCompact(w.tokens)} tokens`,
+      })),
+    };
+  }
+  if (chartRange === 'months') {
+    const months = stats.last6Months || [];
+    return {
+      title: '▸ last 6 months',
+      cols: months.length || 6,
+      items: months.map((m) => ({
+        tokens: m.tokens,
+        isCurrent: m.isCurrent,
+        label: MONTH_SHORT[m.month],
+        tooltip: `${MONTH_SHORT[m.month]} ${m.year} · ${fmtTokensCompact(m.tokens)} tokens`,
+      })),
+    };
+  }
+  // hours (default)
+  const hours = stats.last24Hours || [];
+  return {
+    title: '▸ last 24h',
+    cols: hours.length || 24,
+    items: hours.map((h) => {
+      const { display, period } = hourToAmPm(h.hour);
+      const titleHour = String(h.hour).padStart(2, '0');
+      return {
+        tokens: h.tokens,
+        isCurrent: h.isCurrent,
+        label: `${display}<span class="chart24__period">${period}</span>`,
+        tooltip: `${titleHour}:00 (${display}${period === 'a' ? 'AM' : 'PM'}) · ${fmtTokensCompact(h.tokens)} tokens`,
+      };
+    }),
+  };
+}
+
+function renderChart24() {
+  if (!stats || !chart24El) return;
+  const { items, title, cols } = chartItemsForRange();
+  if (chartTitleEl) chartTitleEl.textContent = title;
+  chart24El.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+
+  if (items.length === 0) {
+    chart24El.innerHTML = '<div class="top__empty">no data yet</div>';
     return;
   }
-  const max = Math.max(...days.map((d) => d.tokens), 1);
-  chart7El.innerHTML = days
-    .map((d) => {
-      const heightPct = d.tokens === 0 ? 0 : Math.max(2, (d.tokens / max) * 100);
-      const isToday = d.date === stats.todayDate;
+  const max = Math.max(...items.map((i) => i.tokens), 1);
+  chart24El.innerHTML = items
+    .map((it) => {
+      const heightPct = it.tokens === 0 ? 0 : Math.max(2, (it.tokens / max) * 100);
       const barClass = [
-        'chart7__bar',
-        d.tokens === 0 ? 'chart7__bar--zero' : '',
-        isToday ? 'chart7__bar--today' : '',
+        'chart24__bar',
+        it.tokens === 0 ? 'chart24__bar--zero' : '',
+        it.isCurrent ? 'chart24__bar--now' : '',
       ]
         .filter(Boolean)
         .join(' ');
+      const showVal = it.isCurrent || it.tokens >= max * 0.5;
+      const valStr = it.tokens > 0 ? fmtTokensCompact(it.tokens) : '';
       return `
-        <div class="chart7__day">
+        <div class="chart24__hour" title="${it.tooltip}">
           <span class="${barClass}" style="height:${heightPct.toFixed(1)}%"></span>
-          <span class="chart7__val">${fmtTokensCompact(d.tokens)}</span>
-          <span class="chart7__label ${isToday ? 'chart7__label--today' : ''}">${weekdayShort(d.date)}</span>
+          ${showVal && valStr ? `<span class="chart24__val">${valStr}</span>` : ''}
+          <span class="chart24__label ${it.isCurrent ? 'chart24__label--now' : ''}">${it.label}</span>
         </div>
       `;
     })

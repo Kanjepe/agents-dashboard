@@ -228,8 +228,16 @@
         </div>
 
         <div class="chart-wrap">
-          <h3 class="sec-head">▸ last 7 days</h3>
-          <div class="chart7" id="chart7" role="img" aria-label="Daily token consumption for the last 7 days"></div>
+          <div class="chart-head">
+            <h3 class="sec-head" id="chart-title">▸ last 24h</h3>
+            <div class="chart-tabs" role="tablist" aria-label="Chart range">
+              <button class="chart-tab" data-range="hours" data-active="true" role="tab">hours</button>
+              <button class="chart-tab" data-range="days" role="tab">days</button>
+              <button class="chart-tab" data-range="weeks" role="tab">weeks</button>
+              <button class="chart-tab" data-range="months" role="tab">months</button>
+            </div>
+          </div>
+          <div class="chart24" id="chart24" role="img" aria-label="Token consumption chart"></div>
         </div>
 
         <div class="tops">

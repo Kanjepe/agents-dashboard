@@ -25,16 +25,424 @@
         "total": 0
       },
       "dependencies": {
-        "prod": 74,
+        "prod": 77,
         "dev": 0,
         "optional": 0,
         "peer": 0,
         "peerOptional": 0,
-        "total": 73
+        "total": 76
       }
     }
   },
   "candidates": [
+    {
+      "domain": "xss",
+      "pattern_name": "inner-html-assign",
+      "file": "docs\\security-audit.html",
+      "line": 245,
+      "match": "    <p>All 16 dynamic UI updates use el.innerHTML = templateString. Template strings DO escape user data via escapeHtml(), but the pattern is fragile - a single forgotten escape in future change becomes a stored-XSS sink.</p>\r",
+      "before": [
+        "  </summary>",
+        "  <div class=\"body\">",
+        "    <h4>Vulnerable pattern</h4>"
+      ],
+      "after": [
+        "    <h4>Evidence</h4>",
+        "    <div class=\"evidence-block\">",
+        "<span class=\"anchor\">public/app.js:671</span>"
+      ]
+    },
+    {
+      "domain": "xss",
+      "pattern_name": "inner-html-assign",
+      "file": "docs\\security-audit.html",
+      "line": 251,
+      "match": "  listEl.innerHTML = &#x27;&lt;div class=&quot;activity__empty&quot;&gt;// no subagents match this filter&lt;/div&gt;&#x27;;\r",
+      "before": [
+        "<span class=\"anchor\">public/app.js:671</span>",
+        "<pre class=\"evidence\">",
+        "if (filtered.length === 0) {"
+      ],
+      "after": [
+        "  return;",
+        "}",
+        "<span class=\"evidence-hit\">listEl.innerHTML = filtered.map(renderAgentLibraryItem).join(&#x27;&#x27;);</span>"
+      ]
+    },
+    {
+      "domain": "xss",
+      "pattern_name": "inner-html-assign",
+      "file": "docs\\security-audit.html",
+      "line": 254,
+      "match": "<span class=\"evidence-hit\">listEl.innerHTML = filtered.map(renderAgentLibraryItem).join(&#x27;&#x27;);</span>\r",
+      "before": [
+        "  listEl.innerHTML = &#x27;&lt;div class=&quot;activity__empty&quot;&gt;// no subagents match this filter&lt;/div&gt;&#x27;;",
+        "  return;",
+        "}"
+      ],
+      "after": [
+        "}",
+        "",
+        "function renderAgentLibraryItem(a) {"
+      ]
+    },
+    {
+      "domain": "xss",
+      "pattern_name": "inner-html-assign",
+      "file": "docs\\findings.json",
+      "line": 208,
+      "match": "          \"snippet\": \"listEl.innerHTML = filtered.map(renderAgentLibraryItem).join('');\",",
+      "before": [
+        "        {",
+        "          \"path\": \"public/app.js\",",
+        "          \"line\": 671,"
+      ],
+      "after": [
+        "          \"before\": [",
+        "            \"if (filtered.length === 0) {\",",
+        "            \"  listEl.innerHTML = '<div class=\\\"activity__empty\\\">// no subagents match this filter</div>';\","
+      ]
+    },
+    {
+      "domain": "xss",
+      "pattern_name": "inner-html-assign",
+      "file": "docs\\findings.json",
+      "line": 211,
+      "match": "            \"  listEl.innerHTML = '<div class=\\\"activity__empty\\\">// no subagents match this filter</div>';\",",
+      "before": [
+        "          \"snippet\": \"listEl.innerHTML = filtered.map(renderAgentLibraryItem).join('');\",",
+        "          \"before\": [",
+        "            \"if (filtered.length === 0) {\","
+      ],
+      "after": [
+        "            \"  return;\",",
+        "            \"}\"",
+        "          ],"
+      ]
+    },
+    {
+      "domain": "xss",
+      "pattern_name": "inner-html-assign",
+      "file": "docs\\findings.json",
+      "line": 222,
+      "match": "      \"vulnerable_pattern\": \"All 16 dynamic UI updates use el.innerHTML = templateString. Template strings DO escape user data via escapeHtml(), but the pattern is fragile - a single forgotten escape in future change becomes a stored-XSS sink.\",",
+      "before": [
+        "          ]",
+        "        }",
+        "      ],"
+      ],
+      "after": [
+        "      \"impact\": \"Defense-in-depth gap. Current code is safe because every interpolation goes through escapeHtml(). First time someone forgets, payload executes in dashboard context.\",",
+        "      \"exploit_scenario\": \"Hypothetical: someone with write access to ~/.claude/projects/ adds malicious file with session title containing <img src=x onerror='fetch(...)'>. If a future change omits escapeHtml around s.title, payload fires.",
+        "      \"fix_summary\": \"Prefer textContent + element.appendChild over innerHTML where possible.\","
+      ]
+    },
+    {
+      "domain": "xss",
+      "pattern_name": "inner-html-assign",
+      "file": "docs\\candidates.json",
+      "line": 43,
+      "match": "      \"match\": \"  tmp.innerHTML = html.trim();\\r\",\r",
+      "before": [
+        "      \"pattern_name\": \"inner-html-assign\",",
+        "      \"file\": \"public\\\\app.js\",",
+        "      \"line\": 379,"
+      ],
+      "after": [
+        "      \"before\": [",
+        "        \"\",",
+        "        \"function htmlToElement(html) {\","
+      ]
+    },
+    {
+      "domain": "xss",
+      "pattern_name": "inner-html-assign",
+      "file": "docs\\candidates.json",
+      "line": 60,
+      "match": "      \"match\": \"        el.innerHTML = fresh.innerHTML;\\r\",\r",
+      "before": [
+        "      \"pattern_name\": \"inner-html-assign\",",
+        "      \"file\": \"public\\\\app.js\",",
+        "      \"line\": 431,"
+      ],
+      "after": [
+        "      \"before\": [",
+        "        \"        const fresh = htmlToElement(renderEntry(s, i));\",",
+        "        \"        el.dataset.status = s.status;\","
+      ]
+    },
+    {
+      "domain": "xss",
+      "pattern_name": "inner-html-assign",
+      "file": "docs\\candidates.json",
+      "line": 77,
+      "match": "      \"match\": \"    chart7El.innerHTML = '<div class=\\\"top__empty\\\">no data yet</div>';\\r\",\r",
+      "before": [
+        "      \"pattern_name\": \"inner-html-assign\",",
+        "      \"file\": \"public\\\\app.js\",",
+        "      \"line\": 525,"
+      ],
+      "after": [
+        "      \"before\": [",
+        "        \"  if (!stats || !chart7El) return;\",",
+        "        \"  const days = stats.last7Days || [];\","
+      ]
+    },
+    {
+      "domain": "xss",
+      "pattern_name": "inner-html-assign",
+      "file": "docs\\candidates.json",
+      "line": 94,
+      "match": "      \"match\": \"  chart7El.innerHTML = days\\r\",\r",
+      "before": [
+        "      \"pattern_name\": \"inner-html-assign\",",
+        "      \"file\": \"public\\\\app.js\",",
+        "      \"line\": 529,"
+      ],
+      "after": [
+        "      \"before\": [",
+        "        \"    return;\",",
+        "        \"  }\","
+      ]
+    },
+    {
+      "domain": "xss",
+      "pattern_name": "inner-html-assign",
+      "file": "docs\\candidates.json",
+      "line": 111,
+      "match": "      \"match\": \"    el.innerHTML = '<li class=\\\"top__empty\\\">// no entries</li>';\\r\",\r",
+      "before": [
+        "      \"pattern_name\": \"inner-html-assign\",",
+        "      \"file\": \"public\\\\app.js\",",
+        "      \"line\": 554,"
+      ],
+      "after": [
+        "      \"before\": [",
+        "        \"function renderTop(el, list) {\",",
+        "        \"  if (!el) return;\","
+      ]
+    },
+    {
+      "domain": "xss",
+      "pattern_name": "inner-html-assign",
+      "file": "docs\\candidates.json",
+      "line": 128,
+      "match": "      \"match\": \"  el.innerHTML = list\\r\",\r",
+      "before": [
+        "      \"pattern_name\": \"inner-html-assign\",",
+        "      \"file\": \"public\\\\app.js\",",
+        "      \"line\": 558,"
+      ],
+      "after": [
+        "      \"before\": [",
+        "        \"    return;\",",
+        "        \"  }\","
+      ]
+    },
+    {
+      "domain": "xss",
+      "pattern_name": "inner-html-assign",
+      "file": "docs\\candidates.json",
+      "line": 145,
+      "match": "      \"match\": \"  el.innerHTML = chips\\r\",\r",
+      "before": [
+        "      \"pattern_name\": \"inner-html-assign\",",
+        "      \"file\": \"public\\\\app.js\",",
+        "      \"line\": 615,"
+      ],
+      "after": [
+        "      \"before\": [",
+        "        \"    { key: 'all', label: 'all', count: items.length },\",",
+        "        \"    ...groups.map((g) => ({ key: g, label: g, count: counts.get(g) || 0 })),\","
+      ]
+    },
+    {
+      "domain": "xss",
+      "pattern_name": "inner-html-assign",
+      "file": "docs\\candidates.json",
+      "line": 162,
+      "match": "      \"match\": \"    listEl.innerHTML = '<div class=\\\"activity__empty\\\">// no subagents match this filter</div>';\\r\",\r",
+      "before": [
+        "      \"pattern_name\": \"inner-html-assign\",",
+        "      \"file\": \"public\\\\app.js\",",
+        "      \"line\": 667,"
+      ],
+      "after": [
+        "      \"before\": [",
+        "        \"  }\",",
+        "        \"\","
+      ]
+    },
+    {
+      "domain": "xss",
+      "pattern_name": "inner-html-assign",
+      "file": "docs\\candidates.json",
+      "line": 179,
+      "match": "      \"match\": \"  listEl.innerHTML = filtered.map(renderAgentLibraryItem).join('');\\r\",\r",
+      "before": [
+        "      \"pattern_name\": \"inner-html-assign\",",
+        "      \"file\": \"public\\\\app.js\",",
+        "      \"line\": 671,"
+      ],
+      "after": [
+        "      \"before\": [",
+        "        \"    return;\",",
+        "        \"  }\","
+      ]
+    },
+    {
+      "domain": "xss",
+      "pattern_name": "inner-html-assign",
+      "file": "docs\\candidates.json",
+      "line": 196,
+      "match": "      \"match\": \"    listEl.innerHTML = '<div class=\\\"activity__empty\\\">// no skills match this filter</div>';\\r\",\r",
+      "before": [
+        "      \"pattern_name\": \"inner-html-assign\",",
+        "      \"file\": \"public\\\\app.js\",",
+        "      \"line\": 738,"
+      ],
+      "after": [
+        "      \"before\": [",
+        "        \"  }\",",
+        "        \"\","
+      ]
+    },
+    {
+      "domain": "xss",
+      "pattern_name": "inner-html-assign",
+      "file": "docs\\candidates.json",
+      "line": 213,
+      "match": "      \"match\": \"  listEl.innerHTML = filtered.map(renderSkillLibraryItem).join('');\\r\",\r",
+      "before": [
+        "      \"pattern_name\": \"inner-html-assign\",",
+        "      \"file\": \"public\\\\app.js\",",
+        "      \"line\": 742,"
+      ],
+      "after": [
+        "      \"before\": [",
+        "        \"    return;\",",
+        "        \"  }\","
+      ]
+    },
+    {
+      "domain": "xss",
+      "pattern_name": "inner-html-assign",
+      "file": "docs\\candidates.json",
+      "line": 230,
+      "match": "      \"match\": \"      detailEl.innerHTML = '<em>// could not load profile</em>';\\r\",\r",
+      "before": [
+        "      \"pattern_name\": \"inner-html-assign\",",
+        "      \"file\": \"public\\\\app.js\",",
+        "      \"line\": 800,"
+      ],
+      "after": [
+        "      \"before\": [",
+        "        \"    const data = await fetchDetailFor(item);\",",
+        "        \"    if (!data) {\","
+      ]
+    },
+    {
+      "domain": "xss",
+      "pattern_name": "inner-html-assign",
+      "file": "docs\\candidates.json",
+      "line": 247,
+      "match": "      \"match\": \"    listEl.innerHTML = '<div class=\\\"activity__empty\\\">// no projects with .claude/skills or .claude/agents found</div>';\\r\",\r",
+      "before": [
+        "      \"pattern_name\": \"inner-html-assign\",",
+        "      \"file\": \"public\\\\app.js\",",
+        "      \"line\": 893,"
+      ],
+      "after": [
+        "      \"before\": [",
+        "        \"  }\",",
+        "        \"\","
+      ]
+    },
+    {
+      "domain": "xss",
+      "pattern_name": "inner-html-assign",
+      "file": "docs\\candidates.json",
+      "line": 264,
+      "match": "      \"match\": \"  listEl.innerHTML = filtered.map(renderProjectCard).join('');\\r\",\r",
+      "before": [
+        "      \"pattern_name\": \"inner-html-assign\",",
+        "      \"file\": \"public\\\\app.js\",",
+        "      \"line\": 897,"
+      ],
+      "after": [
+        "      \"before\": [",
+        "        \"    return;\",",
+        "        \"  }\","
+      ]
+    },
+    {
+      "domain": "xss",
+      "pattern_name": "inner-html-assign",
+      "file": "docs\\candidates.json",
+      "line": 281,
+      "match": "      \"match\": \"    activityViewEl.innerHTML = '<div class=\\\"activity__empty\\\">// no activity in window</div>';\\r\",\r",
+      "before": [
+        "      \"pattern_name\": \"inner-html-assign\",",
+        "      \"file\": \"public\\\\app.js\",",
+        "      \"line\": 986,"
+      ],
+      "after": [
+        "      \"before\": [",
+        "        \"  if (!activityViewEl) return;\",",
+        "        \"  const list = activity?.timeline || [];\","
+      ]
+    },
+    {
+      "domain": "xss",
+      "pattern_name": "inner-html-assign",
+      "file": "docs\\candidates.json",
+      "line": 290,
+      "match": "        \"  activityViewEl.innerHTML = list.map(renderActivityRow).join('');\"\r",
+      "before": [
+        "      \"after\": [",
+        "        \"    return;\",",
+        "        \"  }\","
+      ],
+      "after": [
+        "      ]",
+        "    },",
+        "    {"
+      ]
+    },
+    {
+      "domain": "xss",
+      "pattern_name": "inner-html-assign",
+      "file": "docs\\candidates.json",
+      "line": 298,
+      "match": "      \"match\": \"  activityViewEl.innerHTML = list.map(renderActivityRow).join('');\\r\",\r",
+      "before": [
+        "      \"pattern_name\": \"inner-html-assign\",",
+        "      \"file\": \"public\\\\app.js\",",
+        "      \"line\": 989,"
+      ],
+      "after": [
+        "      \"before\": [",
+        "        \"    activityViewEl.innerHTML = '<div class=\\\"activity__empty\\\">// no activity in window</div>';\",",
+        "        \"    return;\","
+      ]
+    },
+    {
+      "domain": "xss",
+      "pattern_name": "inner-html-assign",
+      "file": "docs\\candidates.json",
+      "line": 300,
+      "match": "        \"    activityViewEl.innerHTML = '<div class=\\\"activity__empty\\\">// no activity in window</div>';\",\r",
+      "before": [
+        "      \"line\": 989,",
+        "      \"match\": \"  activityViewEl.innerHTML = list.map(renderActivityRow).join('');\\r\",",
+        "      \"before\": ["
+      ],
+      "after": [
+        "        \"    return;\",",
+        "        \"  }\"",
+        "      ],"
+      ]
+    },
     {
       "domain": "xss",
       "pattern_name": "inner-html-assign",
@@ -305,6 +713,617 @@
         "}",
         "",
         "function renderActivityRow(ev) {"
+      ]
+    },
+    {
+      "domain": "network",
+      "pattern_name": "non-local-http",
+      "file": "docs\\security-audit.html",
+      "line": 173,
+      "match": "<svg viewBox=\"0 0 880 240\" xmlns=\"http://www.w3.org/2000/svg\" role=\"img\" aria-label=\"Trust boundary diagram\">\r",
+      "before": [
+        "</div></section>",
+        "<section id=\"trust-boundary\"><h2>3. Trust boundary</h2><div class=\"card svg-card\">",
+        ""
+      ],
+      "after": [
+        "  <defs><style>",
+        "    .b{fill:#1f262d;stroke:#30363d}.l{fill:#e6edf3;font:13px ui-sans-serif,system-ui,sans-serif}",
+        "    .ll{fill:#8b949e;font:11px ui-monospace,monospace}.arr{stroke:#60a5fa;stroke-width:2;fill:none;marker-end:url(#a)}"
+      ]
+    },
+    {
+      "domain": "headers",
+      "pattern_name": "csp-header",
+      "file": "docs\\findings.json",
+      "line": 129,
+      "match": "      \"vulnerable_pattern\": \"Express server uses express.static and JSON endpoints but never sets Content-Security-Policy, X-Frame-Options, X-Content-Type-Options, or Referrer-Policy. No helmet middleware. If an XSS bug were ever introduced, there is no second layer of defense.\",",
+      "before": [
+        "          ]",
+        "        }",
+        "      ],"
+      ],
+      "after": [
+        "      \"impact\": \"Any future XSS regression in the frontend has no CSP backstop. Pages can be iframed by any site (clickjacking). Browsers may MIME-sniff served files.\",",
+        "      \"exploit_scenario\": \"Defense-in-depth gap. If a future contributor adds an unescaped innerHTML write of user-controlled data, an attacker who controls JSONL content can inject script. With CSP set to default-src 'self', inline script ",
+        "      \"fix_summary\": \"Add helmet middleware with a conservative CSP suited for a local-only dashboard.\","
+      ]
+    },
+    {
+      "domain": "headers",
+      "pattern_name": "csp-header",
+      "file": "docs\\findings.json",
+      "line": 141,
+      "match": "        \"Open http://localhost:4173/, check Network tab response headers include Content-Security-Policy.\",",
+      "before": [
+        "      ],",
+        "      \"safe_code_example\": \"import helmet from 'helmet';\\napp.use(helmet({\\n  contentSecurityPolicy: {\\n    directives: {\\n      defaultSrc: [\\\"'self'\\\"],\\n      scriptSrc: [\\\"'self'\\\"],\\n      styleSrc: [\\\"'self'\\\", \\\"'unsafe-inline'\\\", 'h",
+        "      \"verification_steps\": ["
+      ],
+      "after": [
+        "        \"curl -I http://localhost:4173/ expects X-Frame-Options, X-Content-Type-Options.\"",
+        "      ],",
+        "      \"false_positive_notes\": \"\","
+      ]
+    },
+    {
+      "domain": "headers",
+      "pattern_name": "csp-header",
+      "file": "docs\\security-audit.html",
+      "line": 396,
+      "match": "    <p>Express server uses express.static and JSON endpoints but never sets Content-Security-Policy, X-Frame-Options, X-Content-Type-Options, or Referrer-Policy. No helmet middleware. If an XSS bug were ever introduced, there is no second layer of defense.</p>\r",
+      "before": [
+        "  </summary>",
+        "  <div class=\"body\">",
+        "    <h4>Vulnerable pattern</h4>"
+      ],
+      "after": [
+        "    <h4>Evidence</h4>",
+        "    <div class=\"evidence-block\">",
+        "<span class=\"anchor\">server.js:141</span>"
+      ]
+    },
+    {
+      "domain": "headers",
+      "pattern_name": "csp-header",
+      "file": "docs\\security-audit.html",
+      "line": 428,
+      "match": "    <ul><li>Open http://localhost:4173/, check Network tab response headers include Content-Security-Policy.</li><li>curl -I http://localhost:4173/ expects X-Frame-Options, X-Content-Type-Options.</li></ul>\r",
+      "before": [
+        "  },",
+        "}));</pre>",
+        "    <h4>Verification</h4>"
+      ],
+      "after": [
+        "    <h4>References</h4>",
+        "    <ul><li><a href=\"https://helmetjs.github.io/\" rel=\"noopener noreferrer\" target=\"_blank\">https://helmetjs.github.io/</a></li><li><a href=\"https://cwe.mitre.org/data/definitions/693.html\" rel=\"noopener noreferrer\" target=\"_blank\">https://",
+        "  </div>"
+      ]
+    },
+    {
+      "domain": "headers",
+      "pattern_name": "xfo-header",
+      "file": "docs\\security-audit.html",
+      "line": 391,
+      "match": "    <span class=\"title\">Missing security headers (CSP, X-Frame-Options, etc.)</span>\r",
+      "before": [
+        "    <span class=\"badge conf-high\" aria-label=\"confidence high\">conf: high</span>",
+        "    <span class=\"badge domain\">headers</span>",
+        "    <span class=\"badge status status-informational\">informational</span>"
+      ],
+      "after": [
+        "    <span class=\"anchor\">server.js:141</span>",
+        "  </summary>",
+        "  <div class=\"body\">"
+      ]
+    },
+    {
+      "domain": "headers",
+      "pattern_name": "xfo-header",
+      "file": "docs\\security-audit.html",
+      "line": 396,
+      "match": "    <p>Express server uses express.static and JSON endpoints but never sets Content-Security-Policy, X-Frame-Options, X-Content-Type-Options, or Referrer-Policy. No helmet middleware. If an XSS bug were ever introduced, there is no second layer of defense.</p>\r",
+      "before": [
+        "  </summary>",
+        "  <div class=\"body\">",
+        "    <h4>Vulnerable pattern</h4>"
+      ],
+      "after": [
+        "    <h4>Evidence</h4>",
+        "    <div class=\"evidence-block\">",
+        "<span class=\"anchor\">server.js:141</span>"
+      ]
+    },
+    {
+      "domain": "headers",
+      "pattern_name": "xfo-header",
+      "file": "docs\\security-audit.html",
+      "line": 413,
+      "match": "    <ol class=\"steps\"><li>1. npm install helmet</li><li>2. Add app.use(helmet({...})) before any routes.</li><li>3. Set X-Frame-Options: DENY (no need to be framed).</li><li>4. Test that the dashboard still renders correctly with CSP enabled.</li></ol>\r",
+      "before": [
+        "    <p>Defense-in-depth gap. If a future contributor adds an unescaped innerHTML write of user-controlled data, an attacker who controls JSONL content can inject script. With CSP set to default-src &#x27;self&#x27;, inline script would be b",
+        "    <h4>Fix</h4>",
+        "    <p>Add helmet middleware with a conservative CSP suited for a local-only dashboard.</p>"
+      ],
+      "after": [
+        "    <h4>Safe code</h4>",
+        "    <pre class=\"safe\">import helmet from &#x27;helmet&#x27;;",
+        "app.use(helmet({"
+      ]
+    },
+    {
+      "domain": "headers",
+      "pattern_name": "xfo-header",
+      "file": "docs\\security-audit.html",
+      "line": 428,
+      "match": "    <ul><li>Open http://localhost:4173/, check Network tab response headers include Content-Security-Policy.</li><li>curl -I http://localhost:4173/ expects X-Frame-Options, X-Content-Type-Options.</li></ul>\r",
+      "before": [
+        "  },",
+        "}));</pre>",
+        "    <h4>Verification</h4>"
+      ],
+      "after": [
+        "    <h4>References</h4>",
+        "    <ul><li><a href=\"https://helmetjs.github.io/\" rel=\"noopener noreferrer\" target=\"_blank\">https://helmetjs.github.io/</a></li><li><a href=\"https://cwe.mitre.org/data/definitions/693.html\" rel=\"noopener noreferrer\" target=\"_blank\">https://",
+        "  </div>"
+      ]
+    },
+    {
+      "domain": "headers",
+      "pattern_name": "xfo-header",
+      "file": "docs\\findings.json",
+      "line": 106,
+      "match": "      \"title\": \"Missing security headers (CSP, X-Frame-Options, etc.)\",",
+      "before": [
+        "    },",
+        "    {",
+        "      \"id\": \"sec-003\","
+      ],
+      "after": [
+        "      \"severity\": \"MEDIUM\",",
+        "      \"confidence\": \"high\",",
+        "      \"status\": \"informational\","
+      ]
+    },
+    {
+      "domain": "headers",
+      "pattern_name": "xfo-header",
+      "file": "docs\\findings.json",
+      "line": 129,
+      "match": "      \"vulnerable_pattern\": \"Express server uses express.static and JSON endpoints but never sets Content-Security-Policy, X-Frame-Options, X-Content-Type-Options, or Referrer-Policy. No helmet middleware. If an XSS bug were ever introduced, there is no second layer of defense.\",",
+      "before": [
+        "          ]",
+        "        }",
+        "      ],"
+      ],
+      "after": [
+        "      \"impact\": \"Any future XSS regression in the frontend has no CSP backstop. Pages can be iframed by any site (clickjacking). Browsers may MIME-sniff served files.\",",
+        "      \"exploit_scenario\": \"Defense-in-depth gap. If a future contributor adds an unescaped innerHTML write of user-controlled data, an attacker who controls JSONL content can inject script. With CSP set to default-src 'self', inline script ",
+        "      \"fix_summary\": \"Add helmet middleware with a conservative CSP suited for a local-only dashboard.\","
+      ]
+    },
+    {
+      "domain": "headers",
+      "pattern_name": "xfo-header",
+      "file": "docs\\findings.json",
+      "line": 136,
+      "match": "        \"3. Set X-Frame-Options: DENY (no need to be framed).\",",
+      "before": [
+        "      \"fix_steps\": [",
+        "        \"1. npm install helmet\",",
+        "        \"2. Add app.use(helmet({...})) before any routes.\","
+      ],
+      "after": [
+        "        \"4. Test that the dashboard still renders correctly with CSP enabled.\"",
+        "      ],",
+        "      \"safe_code_example\": \"import helmet from 'helmet';\\napp.use(helmet({\\n  contentSecurityPolicy: {\\n    directives: {\\n      defaultSrc: [\\\"'self'\\\"],\\n      scriptSrc: [\\\"'self'\\\"],\\n      styleSrc: [\\\"'self'\\\", \\\"'unsafe-inline'\\\", 'h"
+      ]
+    },
+    {
+      "domain": "headers",
+      "pattern_name": "xfo-header",
+      "file": "docs\\findings.json",
+      "line": 142,
+      "match": "        \"curl -I http://localhost:4173/ expects X-Frame-Options, X-Content-Type-Options.\"",
+      "before": [
+        "      \"safe_code_example\": \"import helmet from 'helmet';\\napp.use(helmet({\\n  contentSecurityPolicy: {\\n    directives: {\\n      defaultSrc: [\\\"'self'\\\"],\\n      scriptSrc: [\\\"'self'\\\"],\\n      styleSrc: [\\\"'self'\\\", \\\"'unsafe-inline'\\\", 'h",
+        "      \"verification_steps\": [",
+        "        \"Open http://localhost:4173/, check Network tab response headers include Content-Security-Policy.\","
+      ],
+      "after": [
+        "      ],",
+        "      \"false_positive_notes\": \"\",",
+        "      \"references\": ["
+      ]
+    },
+    {
+      "domain": "headers",
+      "pattern_name": "referrer-policy-header",
+      "file": "docs\\security-audit.html",
+      "line": 396,
+      "match": "    <p>Express server uses express.static and JSON endpoints but never sets Content-Security-Policy, X-Frame-Options, X-Content-Type-Options, or Referrer-Policy. No helmet middleware. If an XSS bug were ever introduced, there is no second layer of defense.</p>\r",
+      "before": [
+        "  </summary>",
+        "  <div class=\"body\">",
+        "    <h4>Vulnerable pattern</h4>"
+      ],
+      "after": [
+        "    <h4>Evidence</h4>",
+        "    <div class=\"evidence-block\">",
+        "<span class=\"anchor\">server.js:141</span>"
+      ]
+    },
+    {
+      "domain": "headers",
+      "pattern_name": "referrer-policy-header",
+      "file": "docs\\findings.json",
+      "line": 129,
+      "match": "      \"vulnerable_pattern\": \"Express server uses express.static and JSON endpoints but never sets Content-Security-Policy, X-Frame-Options, X-Content-Type-Options, or Referrer-Policy. No helmet middleware. If an XSS bug were ever introduced, there is no second layer of defense.\",",
+      "before": [
+        "          ]",
+        "        }",
+        "      ],"
+      ],
+      "after": [
+        "      \"impact\": \"Any future XSS regression in the frontend has no CSP backstop. Pages can be iframed by any site (clickjacking). Browsers may MIME-sniff served files.\",",
+        "      \"exploit_scenario\": \"Defense-in-depth gap. If a future contributor adds an unescaped innerHTML write of user-controlled data, an attacker who controls JSONL content can inject script. With CSP set to default-src 'self', inline script ",
+        "      \"fix_summary\": \"Add helmet middleware with a conservative CSP suited for a local-only dashboard.\","
+      ]
+    },
+    {
+      "domain": "headers",
+      "pattern_name": "x-content-type-nosniff",
+      "file": "docs\\findings.json",
+      "line": 129,
+      "match": "      \"vulnerable_pattern\": \"Express server uses express.static and JSON endpoints but never sets Content-Security-Policy, X-Frame-Options, X-Content-Type-Options, or Referrer-Policy. No helmet middleware. If an XSS bug were ever introduced, there is no second layer of defense.\",",
+      "before": [
+        "          ]",
+        "        }",
+        "      ],"
+      ],
+      "after": [
+        "      \"impact\": \"Any future XSS regression in the frontend has no CSP backstop. Pages can be iframed by any site (clickjacking). Browsers may MIME-sniff served files.\",",
+        "      \"exploit_scenario\": \"Defense-in-depth gap. If a future contributor adds an unescaped innerHTML write of user-controlled data, an attacker who controls JSONL content can inject script. With CSP set to default-src 'self', inline script ",
+        "      \"fix_summary\": \"Add helmet middleware with a conservative CSP suited for a local-only dashboard.\","
+      ]
+    },
+    {
+      "domain": "headers",
+      "pattern_name": "x-content-type-nosniff",
+      "file": "docs\\findings.json",
+      "line": 142,
+      "match": "        \"curl -I http://localhost:4173/ expects X-Frame-Options, X-Content-Type-Options.\"",
+      "before": [
+        "      \"safe_code_example\": \"import helmet from 'helmet';\\napp.use(helmet({\\n  contentSecurityPolicy: {\\n    directives: {\\n      defaultSrc: [\\\"'self'\\\"],\\n      scriptSrc: [\\\"'self'\\\"],\\n      styleSrc: [\\\"'self'\\\", \\\"'unsafe-inline'\\\", 'h",
+        "      \"verification_steps\": [",
+        "        \"Open http://localhost:4173/, check Network tab response headers include Content-Security-Policy.\","
+      ],
+      "after": [
+        "      ],",
+        "      \"false_positive_notes\": \"\",",
+        "      \"references\": ["
+      ]
+    },
+    {
+      "domain": "headers",
+      "pattern_name": "x-content-type-nosniff",
+      "file": "docs\\security-audit.html",
+      "line": 396,
+      "match": "    <p>Express server uses express.static and JSON endpoints but never sets Content-Security-Policy, X-Frame-Options, X-Content-Type-Options, or Referrer-Policy. No helmet middleware. If an XSS bug were ever introduced, there is no second layer of defense.</p>\r",
+      "before": [
+        "  </summary>",
+        "  <div class=\"body\">",
+        "    <h4>Vulnerable pattern</h4>"
+      ],
+      "after": [
+        "    <h4>Evidence</h4>",
+        "    <div class=\"evidence-block\">",
+        "<span class=\"anchor\">server.js:141</span>"
+      ]
+    },
+    {
+      "domain": "headers",
+      "pattern_name": "x-content-type-nosniff",
+      "file": "docs\\security-audit.html",
+      "line": 428,
+      "match": "    <ul><li>Open http://localhost:4173/, check Network tab response headers include Content-Security-Policy.</li><li>curl -I http://localhost:4173/ expects X-Frame-Options, X-Content-Type-Options.</li></ul>\r",
+      "before": [
+        "  },",
+        "}));</pre>",
+        "    <h4>Verification</h4>"
+      ],
+      "after": [
+        "    <h4>References</h4>",
+        "    <ul><li><a href=\"https://helmetjs.github.io/\" rel=\"noopener noreferrer\" target=\"_blank\">https://helmetjs.github.io/</a></li><li><a href=\"https://cwe.mitre.org/data/definitions/693.html\" rel=\"noopener noreferrer\" target=\"_blank\">https://",
+        "  </div>"
+      ]
+    },
+    {
+      "domain": "rate-limit",
+      "pattern_name": "rate-limit-keyword",
+      "file": "docs\\security-audit.html",
+      "line": 228,
+      "match": "<label><input type=\"checkbox\" name=\"dom\" value=\"rate-limit\" checked> rate-limit</label>\r",
+      "before": [
+        "<label><input type=\"checkbox\" name=\"dom\" value=\"headers\" checked> headers</label>",
+        "<label><input type=\"checkbox\" name=\"dom\" value=\"input-validation\" checked> input-validation</label>",
+        "<label><input type=\"checkbox\" name=\"dom\" value=\"network\" checked> network</label>"
+      ],
+      "after": [
+        "<label><input type=\"checkbox\" name=\"dom\" value=\"xss\" checked> xss</label>",
+        "</fieldset>",
+        "<label><input type=\"checkbox\" id=\"showUnverified\"> show unverified</label>"
+      ]
+    },
+    {
+      "domain": "rate-limit",
+      "pattern_name": "rate-limit-keyword",
+      "file": "docs\\security-audit.html",
+      "line": 433,
+      "match": "<details id=\"sec-004\" class=\"finding sev-LOW\" data-domain=\"rate-limit\" data-severity=\"LOW\" data-confidence=\"high\" data-status=\"informational\">\r",
+      "before": [
+        "    <ul><li><a href=\"https://helmetjs.github.io/\" rel=\"noopener noreferrer\" target=\"_blank\">https://helmetjs.github.io/</a></li><li><a href=\"https://cwe.mitre.org/data/definitions/693.html\" rel=\"noopener noreferrer\" target=\"_blank\">https://",
+        "  </div>",
+        "</details>"
+      ],
+      "after": [
+        "  <summary>",
+        "    <span class=\"badge sev-LOW\" aria-label=\"severity LOW\">LOW</span>",
+        "    <span class=\"badge conf-high\" aria-label=\"confidence high\">conf: high</span>"
+      ]
+    },
+    {
+      "domain": "rate-limit",
+      "pattern_name": "rate-limit-keyword",
+      "file": "docs\\security-audit.html",
+      "line": 437,
+      "match": "    <span class=\"badge domain\">rate-limit</span>\r",
+      "before": [
+        "  <summary>",
+        "    <span class=\"badge sev-LOW\" aria-label=\"severity LOW\">LOW</span>",
+        "    <span class=\"badge conf-high\" aria-label=\"confidence high\">conf: high</span>"
+      ],
+      "after": [
+        "    <span class=\"badge status status-informational\">informational</span>",
+        "    <span class=\"title\">No rate limiting on API endpoints</span>",
+        "    <span class=\"anchor\">server.js:143</span>"
+      ]
+    },
+    {
+      "domain": "rate-limit",
+      "pattern_name": "rate-limit-keyword",
+      "file": "docs\\security-audit.html",
+      "line": 466,
+      "match": "    <p>Add express-rate-limit with 60 req/min per IP.</p>\r",
+      "before": [
+        "    <h4>Exploit scenario</h4>",
+        "    <p>Curl loop: while true; do curl http://localhost:4173/api/sessions &amp; done. Server queue-pressured; chokidar backlog; live updates stop.</p>",
+        "    <h4>Fix</h4>"
+      ],
+      "after": [
+        "    <ol class=\"steps\"><li>1. npm install express-rate-limit</li><li>2. Apply global limiter before /api routes</li><li>3. Acceptable for localhost-only; tighten if exposed.</li></ol>",
+        "    <h4>Safe code</h4>",
+        "    <pre class=\"safe\">import rateLimit from &#x27;express-rate-limit&#x27;;"
+      ]
+    },
+    {
+      "domain": "rate-limit",
+      "pattern_name": "rate-limit-keyword",
+      "file": "docs\\security-audit.html",
+      "line": 467,
+      "match": "    <ol class=\"steps\"><li>1. npm install express-rate-limit</li><li>2. Apply global limiter before /api routes</li><li>3. Acceptable for localhost-only; tighten if exposed.</li></ol>\r",
+      "before": [
+        "    <p>Curl loop: while true; do curl http://localhost:4173/api/sessions &amp; done. Server queue-pressured; chokidar backlog; live updates stop.</p>",
+        "    <h4>Fix</h4>",
+        "    <p>Add express-rate-limit with 60 req/min per IP.</p>"
+      ],
+      "after": [
+        "    <h4>Safe code</h4>",
+        "    <pre class=\"safe\">import rateLimit from &#x27;express-rate-limit&#x27;;",
+        "const apiLimiter = rateLimit({ windowMs: 60_000, max: 60, standardHeaders: true });"
+      ]
+    },
+    {
+      "domain": "rate-limit",
+      "pattern_name": "rate-limit-keyword",
+      "file": "docs\\security-audit.html",
+      "line": 469,
+      "match": "    <pre class=\"safe\">import rateLimit from &#x27;express-rate-limit&#x27;;\r",
+      "before": [
+        "    <p>Add express-rate-limit with 60 req/min per IP.</p>",
+        "    <ol class=\"steps\"><li>1. npm install express-rate-limit</li><li>2. Apply global limiter before /api routes</li><li>3. Acceptable for localhost-only; tighten if exposed.</li></ol>",
+        "    <h4>Safe code</h4>"
+      ],
+      "after": [
+        "const apiLimiter = rateLimit({ windowMs: 60_000, max: 60, standardHeaders: true });",
+        "app.use(&#x27;/api&#x27;, apiLimiter);</pre>",
+        "    <h4>Verification</h4>"
+      ]
+    },
+    {
+      "domain": "rate-limit",
+      "pattern_name": "rate-limit-keyword",
+      "file": "docs\\security-audit.html",
+      "line": 470,
+      "match": "const apiLimiter = rateLimit({ windowMs: 60_000, max: 60, standardHeaders: true });\r",
+      "before": [
+        "    <ol class=\"steps\"><li>1. npm install express-rate-limit</li><li>2. Apply global limiter before /api routes</li><li>3. Acceptable for localhost-only; tighten if exposed.</li></ol>",
+        "    <h4>Safe code</h4>",
+        "    <pre class=\"safe\">import rateLimit from &#x27;express-rate-limit&#x27;;"
+      ],
+      "after": [
+        "app.use(&#x27;/api&#x27;, apiLimiter);</pre>",
+        "    <h4>Verification</h4>",
+        "    <ul><li>for i in {1..100}; do curl -s -o /dev/null -w &#x27;%{http_code}\\n&#x27; http://localhost:4173/api/health; done | sort | uniq -c - expect 429 for some.</li></ul>"
+      ]
+    },
+    {
+      "domain": "rate-limit",
+      "pattern_name": "rate-limit-keyword",
+      "file": "docs\\security-audit.html",
+      "line": 471,
+      "match": "app.use(&#x27;/api&#x27;, apiLimiter);</pre>\r",
+      "before": [
+        "    <h4>Safe code</h4>",
+        "    <pre class=\"safe\">import rateLimit from &#x27;express-rate-limit&#x27;;",
+        "const apiLimiter = rateLimit({ windowMs: 60_000, max: 60, standardHeaders: true });"
+      ],
+      "after": [
+        "    <h4>Verification</h4>",
+        "    <ul><li>for i in {1..100}; do curl -s -o /dev/null -w &#x27;%{http_code}\\n&#x27; http://localhost:4173/api/health; done | sort | uniq -c - expect 429 for some.</li></ul>",
+        "    <h4>References</h4>"
+      ]
+    },
+    {
+      "domain": "rate-limit",
+      "pattern_name": "rate-limit-keyword",
+      "file": "docs\\findings.json",
+      "line": 156,
+      "match": "      \"domain\": \"rate-limit\",",
+      "before": [
+        "      \"severity\": \"LOW\",",
+        "      \"confidence\": \"high\",",
+        "      \"status\": \"informational\","
+      ],
+      "after": [
+        "      \"cwe\": \"CWE-770\",",
+        "      \"affected_files\": [",
+        "        { \"path\": \"server.js\", \"line\": 143, \"endLine\": 165 }"
+      ]
+    },
+    {
+      "domain": "rate-limit",
+      "pattern_name": "rate-limit-keyword",
+      "file": "docs\\findings.json",
+      "line": 178,
+      "match": "      \"fix_summary\": \"Add express-rate-limit with 60 req/min per IP.\",",
+      "before": [
+        "      \"vulnerable_pattern\": \"buildSnapshot() is expensive - walks JSONL projects directory, scans all files newer than 30 minutes, re-parses up to a thousand files in cache-miss case. An attacker hammering /api/sessions can DoS the server a",
+        "      \"impact\": \"Local DoS - any process on the machine can make dashboard unresponsive. Limited blast radius because localhost only (once HIGH finding is fixed).\",",
+        "      \"exploit_scenario\": \"Curl loop: while true; do curl http://localhost:4173/api/sessions & done. Server queue-pressured; chokidar backlog; live updates stop.\","
+      ],
+      "after": [
+        "      \"fix_steps\": [",
+        "        \"1. npm install express-rate-limit\",",
+        "        \"2. Apply global limiter before /api routes\","
+      ]
+    },
+    {
+      "domain": "rate-limit",
+      "pattern_name": "rate-limit-keyword",
+      "file": "docs\\findings.json",
+      "line": 180,
+      "match": "        \"1. npm install express-rate-limit\",",
+      "before": [
+        "      \"exploit_scenario\": \"Curl loop: while true; do curl http://localhost:4173/api/sessions & done. Server queue-pressured; chokidar backlog; live updates stop.\",",
+        "      \"fix_summary\": \"Add express-rate-limit with 60 req/min per IP.\",",
+        "      \"fix_steps\": ["
+      ],
+      "after": [
+        "        \"2. Apply global limiter before /api routes\",",
+        "        \"3. Acceptable for localhost-only; tighten if exposed.\"",
+        "      ],"
+      ]
+    },
+    {
+      "domain": "rate-limit",
+      "pattern_name": "rate-limit-keyword",
+      "file": "docs\\findings.json",
+      "line": 181,
+      "match": "        \"2. Apply global limiter before /api routes\",",
+      "before": [
+        "      \"fix_summary\": \"Add express-rate-limit with 60 req/min per IP.\",",
+        "      \"fix_steps\": [",
+        "        \"1. npm install express-rate-limit\","
+      ],
+      "after": [
+        "        \"3. Acceptable for localhost-only; tighten if exposed.\"",
+        "      ],",
+        "      \"safe_code_example\": \"import rateLimit from 'express-rate-limit';\\nconst apiLimiter = rateLimit({ windowMs: 60_000, max: 60, standardHeaders: true });\\napp.use('/api', apiLimiter);\","
+      ]
+    },
+    {
+      "domain": "rate-limit",
+      "pattern_name": "rate-limit-keyword",
+      "file": "docs\\findings.json",
+      "line": 184,
+      "match": "      \"safe_code_example\": \"import rateLimit from 'express-rate-limit';\\nconst apiLimiter = rateLimit({ windowMs: 60_000, max: 60, standardHeaders: true });\\napp.use('/api', apiLimiter);\",",
+      "before": [
+        "        \"2. Apply global limiter before /api routes\",",
+        "        \"3. Acceptable for localhost-only; tighten if exposed.\"",
+        "      ],"
+      ],
+      "after": [
+        "      \"verification_steps\": [",
+        "        \"for i in {1..100}; do curl -s -o /dev/null -w '%{http_code}\\\\n' http://localhost:4173/api/health; done | sort | uniq -c - expect 429 for some.\"",
+        "      ],"
+      ]
+    },
+    {
+      "domain": "rate-limit",
+      "pattern_name": "rate-limit-keyword",
+      "file": "package.json",
+      "line": 15,
+      "match": "    \"express-rate-limit\": \"^8.5.2\",\r",
+      "before": [
+        "  \"dependencies\": {",
+        "    \"chokidar\": \"^4.0.3\",",
+        "    \"express\": \"^4.21.2\","
+      ],
+      "after": [
+        "    \"helmet\": \"^8.2.0\",",
+        "    \"js-yaml\": \"^4.2.0\",",
+        "    \"ws\": \"^8.18.0\""
+      ]
+    },
+    {
+      "domain": "rate-limit",
+      "pattern_name": "rate-limit-keyword",
+      "file": "server.js",
+      "line": 3,
+      "match": "import rateLimit from 'express-rate-limit';\r",
+      "before": [
+        "import express from 'express';",
+        "import helmet from 'helmet';"
+      ],
+      "after": [
+        "import { createServer } from 'node:http';",
+        "import { WebSocketServer } from 'ws';",
+        "import chokidar from 'chokidar';"
+      ]
+    },
+    {
+      "domain": "rate-limit",
+      "pattern_name": "rate-limit-keyword",
+      "file": "server.js",
+      "line": 168,
+      "match": "const apiLimiter = rateLimit({\r",
+      "before": [
+        "  }),",
+        ");",
+        ""
+      ],
+      "after": [
+        "  windowMs: 60 * 1000,",
+        "  max: 120,",
+        "  standardHeaders: true,"
+      ]
+    },
+    {
+      "domain": "rate-limit",
+      "pattern_name": "rate-limit-keyword",
+      "file": "server.js",
+      "line": 174,
+      "match": "app.use('/api', apiLimiter);\r",
+      "before": [
+        "  standardHeaders: true,",
+        "  legacyHeaders: false,",
+        "});"
+      ],
+      "after": [
+        "",
+        "app.use(express.static(join(__dirname, 'public')));",
+        ""
       ]
     }
   ],

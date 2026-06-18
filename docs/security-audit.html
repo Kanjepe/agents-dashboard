@@ -135,7 +135,7 @@ footer.foot{margin-top:40px;padding-top:18px;border-top:1px solid var(--border);
 <p>Evidence-based static review across 22 security domains. Findings are grounded in real code with file:line anchors. Every detected secret value is redacted.</p>
 <div class="head-row">
 <span class="badge domain">scope: full</span>
-<span class="badge domain">generated: 2026-06-09T13:42:22Z</span>
+<span class="badge domain">generated: 2026-06-09T14:27:18Z</span>
 <button class="theme-toggle" id="themeToggle" type="button">Theme: auto</button>
 </div></header>
 <section id="exec-summary"><h2>1. Executive summary</h2>
@@ -156,7 +156,7 @@ footer.foot{margin-top:40px;padding-top:18px;border-top:1px solid var(--border);
 <section id="scope"><h2>2. Scope &amp; limitations</h2><div class="card">
 <table><thead><tr><th>Aspect</th><th>Value</th></tr></thead><tbody>
 <tr><td>Scope used</td><td><code>full</code></td></tr>
-<tr><td>Candidates collected</td><td>16</td></tr>
+<tr><td>Candidates collected</td><td>76</td></tr>
 <tr><td>Findings rendered</td><td>7</td></tr>
 <tr><td>has_package_json</td><td>True</td></tr>
 <tr><td>lockfiles</td><td>[&#x27;package-lock.json&#x27;]</td></tr>
@@ -208,7 +208,10 @@ footer.foot{margin-top:40px;padding-top:18px;border-top:1px solid var(--border);
 </tr></tbody></table></div>
 <div class="card"><h3>Candidates by domain (raw scanner output)</h3>
 <table><thead><tr><th>Domain</th><th>Hits</th></tr></thead><tbody>
-<tr><td>xss</td><td>16</td></tr>
+<tr><td>xss</td><td>40</td></tr>
+<tr><td>headers</td><td>18</td></tr>
+<tr><td>rate-limit</td><td>17</td></tr>
+<tr><td>network</td><td>1</td></tr>
 </tbody></table></div>
 </section>
 <section id="findings"><h2>5. Findings</h2>
@@ -557,7 +560,7 @@ app.get(&#x27;/api/skill/:slug&#x27;, async (req, res) =&gt; {
 python scripts/security_scan.py --repo . --scope full --out candidates.json
 python scripts/render_security_audit.py --candidates candidates.json --out docs/security-audit.html [--findings findings.json]
 python scripts/verify_report.py docs/security-audit.html</pre>
-<p><strong>Generated:</strong> 2026-06-09T13:42:22Z</p>
+<p><strong>Generated:</strong> 2026-06-09T14:27:18Z</p>
 </div></section>
 <footer class="foot"><p>Every concrete claim is anchored to a file:line in the live source tree. Trust the code first when in doubt.</p></footer>
 </main></div>

@@ -8,3 +8,6 @@ Thumbs.db
 .server-pid.txt
 .commit-msg*.txt
 .pr-body*.txt
+
+# Machine-specific startup helper (hardcoded local path)
+start-hidden.vbs

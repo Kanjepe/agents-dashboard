@@ -1,7 +1,7 @@
 {
-  "name": "agents-dashboard",
+  "name": "ai-session-telemetry",
   "version": "0.1.0",
-  "description": "Local real-time dashboard for monitoring Claude Code sessions and subagents",
+  "description": "Local, read-only telemetry for AI coding sessions — tokens, cost, burn rate, agents and skills",
   "private": true,
   "type": "module",
   "scripts": {

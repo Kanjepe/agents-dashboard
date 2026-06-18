@@ -301,7 +301,7 @@ watcher.on('error', (err) => console.error('[watch] error:', err.message));
 
 server.listen(PORT, HOST, () => {
   const displayHost = HOST === '127.0.0.1' || HOST === '::1' ? 'localhost' : HOST;
-  console.log(`\n  Agents Dashboard`);
+  console.log(`\n  AI Session Telemetry`);
   console.log(`  ─────────────────────────`);
   console.log(`  Watching: ${projectsDir}`);
   console.log(`  Bind:     ${HOST}:${PORT}`);

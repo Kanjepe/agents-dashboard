@@ -1,6 +1,6 @@
-# Agents Dashboard
+# AI Session Telemetry
 
-Local real-time dashboard for monitoring Claude Code sessions and subagents — a passive read-only observer over `~/.claude/projects/` JSONL files.
+Local, real-time telemetry for AI coding sessions, agents, skills and cost — a passive, read-only observer over `~/.claude/projects/` JSONL files.
 
 Works for anyone running Claude Code locally; no organization-specific assumptions.
 
@@ -63,8 +63,8 @@ Nothing is written to these locations — the dashboard is read-only.
 Requirements: **Node.js 18 or newer** and an active Claude Code installation (so that `~/.claude/projects/` exists on your machine).
 
 ```bash
-git clone https://github.com/Kanjepe/agents-dashboard.git
-cd agents-dashboard
+git clone https://github.com/Kanjepe/ai-session-telemetry.git
+cd ai-session-telemetry
 npm install
 npm start
 ```
@@ -104,10 +104,10 @@ Pick one of these methods.
 
 **Option A — Copy folder manually**
 
-Copy the entire `agents-dashboard/` folder to the new PC, anywhere you like. **Skip `node_modules/`** — it will be regenerated. The folder you need contains:
+Copy the entire `ai-session-telemetry/` folder to the new PC, anywhere you like. **Skip `node_modules/`** — it will be regenerated. The folder you need contains:
 
 ```
-agents-dashboard/
+ai-session-telemetry/
 ├── server.js
 ├── package.json
 ├── package-lock.json
@@ -123,16 +123,16 @@ agents-dashboard/
 If you commit this folder to a git repo:
 
 ```bash
-git clone <your-repo-url> agents-dashboard
-cd agents-dashboard
+git clone <your-repo-url> ai-session-telemetry
+cd ai-session-telemetry
 ```
 
 **Option C — Zip + transfer**
 
 ```powershell
-# On source PC (run from the folder ABOVE agents-dashboard):
-Compress-Archive -Path ".\agents-dashboard" `
-                 -DestinationPath "agents-dashboard.zip" `
+# On source PC (run from the folder ABOVE ai-session-telemetry):
+Compress-Archive -Path ".\ai-session-telemetry" `
+                 -DestinationPath "ai-session-telemetry.zip" `
                  -Exclude "node_modules"
 
 # Then transfer the zip and extract on the target PC.
@@ -141,7 +141,7 @@ Compress-Archive -Path ".\agents-dashboard" `
 ### Step 3 — Install dependencies
 
 ```bash
-cd path/to/agents-dashboard
+cd path/to/ai-session-telemetry
 npm install
 ```
 
@@ -168,7 +168,7 @@ Auto-installs dependencies on first run, starts the server, and opens the browse
 ### Method 2 — From the terminal (cross-platform)
 
 ```bash
-cd path/to/agents-dashboard
+cd path/to/ai-session-telemetry
 npm start
 ```
 
@@ -191,7 +191,7 @@ This uses Node's `--watch` flag to restart the server on file changes.
 ### Method 4 — Background on Windows (no visible window)
 
 ```powershell
-cd C:\path\to\agents-dashboard
+cd C:\path\to\ai-session-telemetry
 Start-Process node -ArgumentList "server.js" -WindowStyle Hidden
 ```
 
@@ -213,7 +213,7 @@ Get-Process -Name node | Where-Object { $_.Path -like "*\nodejs\*" } | Stop-Proc
 ### Method 5 — Background on macOS / Linux
 
 ```bash
-cd path/to/agents-dashboard
+cd path/to/ai-session-telemetry
 nohup node server.js > dashboard.log 2>&1 &
 ```
 
@@ -243,8 +243,8 @@ PORT=5000 node server.js
 
 1. Press `Win + R`, type `shell:startup`, hit Enter
 2. Right-click in that folder → New → Shortcut
-3. Target: `C:\path\to\agents-dashboard\start.bat`
-4. Click Next → name it "Agents Dashboard" → Finish
+3. Target: `C:\path\to\ai-session-telemetry\start.bat`
+4. Click Next → name it "AI Session Telemetry" → Finish
 
 The dashboard now starts whenever you log in.
 
@@ -257,7 +257,7 @@ For headless start without opening a terminal:
 3. Action: Start a program
    - Program: `node`
    - Arguments: `server.js`
-   - Start in: `C:\path\to\agents-dashboard`
+   - Start in: `C:\path\to\ai-session-telemetry`
 4. Finish
 
 ### Windows — Run as a Service (advanced)
@@ -265,27 +265,27 @@ For headless start without opening a terminal:
 Use [NSSM](https://nssm.cc/) to run as a true Windows service:
 
 ```powershell
-nssm install AgentsDashboard "C:\Program Files\nodejs\node.exe" "C:\path\to\agents-dashboard\server.js"
-nssm start AgentsDashboard
+nssm install AiSessionTelemetry "C:\Program Files\nodejs\node.exe" "C:\path\to\ai-session-telemetry\server.js"
+nssm start AiSessionTelemetry
 ```
 
 ### macOS — launchd
 
-Create `~/Library/LaunchAgents/agents-dashboard.plist`:
+Create `~/Library/LaunchAgents/ai-session-telemetry.plist`:
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <plist version="1.0">
 <dict>
-  <key>Label</key><string>com.agents-dashboard</string>
+  <key>Label</key><string>com.ai-session-telemetry</string>
   <key>ProgramArguments</key>
   <array>
     <string>/usr/local/bin/node</string>
-    <string>/path/to/agents-dashboard/server.js</string>
+    <string>/path/to/ai-session-telemetry/server.js</string>
   </array>
   <key>RunAtLoad</key><true/>
   <key>KeepAlive</key><true/>
-  <key>WorkingDirectory</key><string>/path/to/agents-dashboard</string>
+  <key>WorkingDirectory</key><string>/path/to/ai-session-telemetry</string>
 </dict>
 </plist>
 ```
@@ -293,22 +293,22 @@ Create `~/Library/LaunchAgents/agents-dashboard.plist`:
 Then:
 
 ```bash
-launchctl load ~/Library/LaunchAgents/agents-dashboard.plist
+launchctl load ~/Library/LaunchAgents/ai-session-telemetry.plist
 ```
 
 ### Linux — systemd
 
-Create `/etc/systemd/system/agents-dashboard.service`:
+Create `/etc/systemd/system/ai-session-telemetry.service`:
 
 ```ini
 [Unit]
-Description=Agents Dashboard
+Description=AI Session Telemetry
 After=network.target
 
 [Service]
 Type=simple
 User=YOUR_USERNAME
-WorkingDirectory=/home/YOUR_USERNAME/agents-dashboard
+WorkingDirectory=/home/YOUR_USERNAME/ai-session-telemetry
 ExecStart=/usr/bin/node server.js
 Restart=on-failure
 
@@ -319,8 +319,8 @@ WantedBy=multi-user.target
 Then:
 
 ```bash
-sudo systemctl enable agents-dashboard
-sudo systemctl start agents-dashboard
+sudo systemctl enable ai-session-telemetry
+sudo systemctl start ai-session-telemetry
 ```
 
 ---
@@ -473,7 +473,7 @@ Logs print to the terminal where you started the server.
 ### Project layout
 
 ```
-agents-dashboard/
+ai-session-telemetry/
 ├── server.js              Express + WebSocket + chokidar watcher
 ├── lib/
 │   ├── sessions.js        JSONL parser, status logic, cost/burn aggregation

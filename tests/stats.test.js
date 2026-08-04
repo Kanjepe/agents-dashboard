@@ -62,3 +62,40 @@ test('startOfWeekKey: handles month boundary', () => {
   const tue = new Date(2026, 5, 2);
   assert.equal(startOfWeekKey(tue), '2026-06-01');
 });
+
+// ─── usageBreakdown ──────────────────────────────────────────────────────────
+
+import { usageBreakdown } from '../lib/stats.js';
+
+test('usageBreakdown: sums basic usage fields', () => {
+  const u = usageBreakdown({
+    input_tokens: 10,
+    output_tokens: 20,
+    cache_read_input_tokens: 100,
+    cache_creation_input_tokens: 50,
+  });
+  assert.equal(u.input, 10);
+  assert.equal(u.output, 20);
+  assert.equal(u.cacheRead, 100);
+  assert.equal(u.cacheCreate5m, 50);
+  assert.equal(u.cacheCreate1h, 0);
+  assert.equal(u.total, 180);
+});
+
+test('usageBreakdown: uses cache_creation TTL split when present', () => {
+  const u = usageBreakdown({
+    input_tokens: 1,
+    output_tokens: 2,
+    cache_read_input_tokens: 3,
+    cache_creation_input_tokens: 30,
+    cache_creation: { ephemeral_5m_input_tokens: 10, ephemeral_1h_input_tokens: 20 },
+  });
+  assert.equal(u.cacheCreate5m, 10);
+  assert.equal(u.cacheCreate1h, 20);
+  assert.equal(u.total, 36);
+});
+
+test('usageBreakdown: missing fields default to zero', () => {
+  const u = usageBreakdown({});
+  assert.equal(u.total, 0);
+});

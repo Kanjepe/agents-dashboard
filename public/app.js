@@ -36,6 +36,7 @@ chartTabs.forEach((btn) => {
       b.dataset.active = String(b.dataset.range === chartRange);
     });
     renderChart24();
+    renderHistoryModels();
   });
 });
 const topTodayEl = document.getElementById('top-today');
@@ -227,32 +228,6 @@ function renderToolChain(history) {
       <span class="chain__age">${fmtAge(ageSec)} ago</span>
     </p>
   `;
-}
-
-function sparklineBars(history) {
-  if (!history || history.length === 0) {
-    return Array(24).fill('<div class="bar bar--empty" style="height:3px"></div>').join('');
-  }
-  const buckets = 24;
-  const now = Date.now();
-  const oldest = new Date(history[0].t).getTime();
-  const span = Math.max(now - oldest, 60_000);
-  const counts = new Array(buckets).fill(0);
-  for (const tool of history) {
-    const ts = new Date(tool.t).getTime();
-    const ratio = (ts - oldest) / span;
-    const idx = Math.min(buckets - 1, Math.floor(ratio * buckets));
-    counts[idx] += 1;
-  }
-  const max = Math.max(...counts, 1);
-  return counts
-    .map((c) => {
-      if (c === 0) return '<div class="bar bar--empty" style="height:3px"></div>';
-      const h = 6 + Math.round((c / max) * 24);
-      const opacity = 0.45 + 0.55 * (c / max);
-      return `<div class="bar" style="height:${h}px;opacity:${opacity.toFixed(2)}"></div>`;
-    })
-    .join('');
 }
 
 function topTools(toolUsage, limit = 5) {
@@ -598,24 +573,189 @@ function renderStats() {
   renderTop(topTodayEl, stats.topToday);
   renderTop(topWeekEl, stats.topWeek);
   renderTop(topMonthEl, stats.topMonth);
+  renderModels('models-today', stats.models?.today);
+  renderModels('models-week', stats.models?.week);
+  renderModels('models-month', stats.models?.month);
+  renderMemorySplit(stats.memory);
+  renderHistoryModels();
   renderPricingRef(stats.pricing);
 }
 
+// Mirrors lib/pricing.js FAMILIES (base rates; server table wins when present).
 const PRICING_FALLBACK = [
-  { family: 'opus', label: 'opus 4.x', input: 15, output: 75, cacheRead: 1.5, cacheCreate: 18.75 },
-  { family: 'sonnet', label: 'sonnet 4.x', input: 3, output: 15, cacheRead: 0.3, cacheCreate: 3.75 },
+  { family: 'fable-5', label: 'fable 5 / mythos 5', input: 10, output: 50, cacheRead: 1, cacheCreate: 12.5 },
+  { family: 'opus-modern', label: 'opus 4.5 – 5', input: 5, output: 25, cacheRead: 0.5, cacheCreate: 6.25 },
+  { family: 'opus-legacy', label: 'opus ≤ 4.1', input: 15, output: 75, cacheRead: 1.5, cacheCreate: 18.75 },
+  { family: 'sonnet-5', label: 'sonnet 5', input: 3, output: 15, cacheRead: 0.3, cacheCreate: 3.75 },
+  { family: 'sonnet', label: 'sonnet ≤ 4.6', input: 3, output: 15, cacheRead: 0.3, cacheCreate: 3.75 },
+  { family: 'haiku-3.5', label: 'haiku 3.5', input: 0.8, output: 4, cacheRead: 0.08, cacheCreate: 1 },
   { family: 'haiku', label: 'haiku 4.5', input: 1, output: 5, cacheRead: 0.1, cacheCreate: 1.25 },
 ];
 
 function familyForModel(model) {
   if (!model) return null;
   const m = String(model).toLowerCase();
-  const has1m = m.includes('[1m]');
-  if (m.includes('opus')) return has1m ? 'opus-1m' : 'opus';
-  if (m.includes('sonnet')) return has1m ? 'sonnet-1m' : 'sonnet';
-  if (m.includes('haiku-3.5') || m.includes('haiku-3-5')) return 'haiku-3.5';
+  if (m.includes('fable') || m.includes('mythos')) return 'fable-5';
+  if (m.includes('opus')) {
+    return /opus-5|opus-4-[5678]/.test(m) ? 'opus-modern' : 'opus-legacy';
+  }
+  if (/sonnet-5/.test(m)) return 'sonnet-5';
+  if (m.includes('sonnet')) return 'sonnet';
+  if (m.includes('haiku-3.5') || m.includes('haiku-3-5') || /3-5-haiku/.test(m)) return 'haiku-3.5';
   if (m.includes('haiku')) return 'haiku';
   return null;
+}
+
+function renderModels(elId, list) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  if (!list || list.length === 0) {
+    el.innerHTML = '<li class="top__empty">// no entries</li>';
+    return;
+  }
+  const max = Math.max(...list.map((m) => m.tokens), 1);
+  el.innerHTML = list
+    .map((m, i) => {
+      const rank = String(i + 1).padStart(2, '0');
+      const widthPct = Math.max(2, (m.tokens / max) * 100);
+      const cost = m.cost > 0 ? `<span class="top__cost">${fmtCost(m.cost)}</span>` : '';
+      return `
+        <li class="top__item">
+          <span class="top__rank">${rank}</span>
+          <span class="top__name" title="${escapeHtml(m.model)}">${escapeHtml(m.label || m.model)}</span>
+          <span class="top__tokens">${fmtTokensCompact(m.tokens)}</span>
+          ${cost}
+          <span class="top__bar"><span style="width:${widthPct.toFixed(1)}%"></span></span>
+        </li>
+      `;
+    })
+    .join('');
+}
+
+function renderMemorySplit(memory) {
+  const wrapEl = document.getElementById('memory-split');
+  const valsEl = document.getElementById('memory-split-vals');
+  if (!wrapEl || !valsEl) return;
+  const m = memory?.month;
+  if (!m || m.tokens === 0) {
+    wrapEl.hidden = true;
+    return;
+  }
+  wrapEl.hidden = false;
+  const part = (label, v) =>
+    `${label} ${fmtTokensCompact(v.tokens)} (${fmtCost(v.cost)})`;
+  valsEl.textContent = [
+    part('today', memory.today),
+    part('week', memory.week),
+    part('month', memory.month),
+  ].join(' · ');
+}
+
+// Period rows for the by-model history table, following the selected chart tab.
+function historyItemsForRange() {
+  if (!stats) return { title: '', items: [] };
+  if (chartRange === 'days') {
+    return {
+      title: '▸ history · by model · last 7 days',
+      items: (stats.last7Days || []).map((d) => ({
+        name: `${weekdayShort(d.date)} ${d.date}`,
+        tokens: d.tokens,
+        cost: d.cost,
+        models: d.models,
+        isCurrent: d.isCurrent,
+      })),
+    };
+  }
+  if (chartRange === 'weeks') {
+    return {
+      title: '▸ history · by model · last 4 weeks',
+      items: (stats.last4Weeks || []).map((w) => ({
+        name: `week of ${w.weekStart}`,
+        tokens: w.tokens,
+        cost: w.cost,
+        models: w.models,
+        isCurrent: w.isCurrent,
+      })),
+    };
+  }
+  if (chartRange === 'months' || chartRange === 'year') {
+    const months = chartRange === 'year' ? stats.last12Months : stats.last6Months;
+    return {
+      title: `▸ history · by model · last ${chartRange === 'year' ? 12 : 6} months`,
+      items: (months || []).map((mo) => ({
+        name: `${MONTH_SHORT[mo.month]} ${mo.year}`,
+        tokens: mo.tokens,
+        cost: mo.cost,
+        models: mo.models,
+        isCurrent: mo.isCurrent,
+      })),
+    };
+  }
+  // hours (default)
+  return {
+    title: '▸ history · by model · last 24h',
+    items: (stats.last24Hours || []).map((h) => ({
+      name: `${String(h.hour).padStart(2, '0')}:00`,
+      tokens: h.tokens,
+      cost: h.cost,
+      models: h.models,
+      isCurrent: h.isCurrent,
+    })),
+  };
+}
+
+function renderHistoryModels() {
+  const bodyEl = document.getElementById('months-models-body');
+  const titleEl = document.getElementById('months-models-title');
+  if (!bodyEl) return;
+  const { title, items } = historyItemsForRange();
+  if (titleEl) titleEl.textContent = title;
+
+  const withData = items.filter((it) => it.tokens > 0);
+  if (withData.length === 0) {
+    bodyEl.innerHTML = '<div class="top__empty">// no data yet</div>';
+    return;
+  }
+  const rows = withData
+    .map((it) => {
+      const models = (it.models || [])
+        .map(
+          (m) => `
+            <tr>
+              <td class="months-models__model">${escapeHtml(m.label || m.model)}</td>
+              <td>${fmtTokensCompact(m.tokens)}</td>
+              <td>${fmtCost(m.cost)}</td>
+            </tr>
+          `,
+        )
+        .join('');
+      return `
+        <tr class="months-models__month${it.isCurrent ? ' months-models__month--now' : ''}">
+          <td class="months-models__name">${escapeHtml(it.name)}</td>
+          <td>${fmtTokensCompact(it.tokens)}</td>
+          <td>${fmtCost(it.cost)}</td>
+        </tr>
+        ${models}
+      `;
+    })
+    .join('');
+  const totalTokens = withData.reduce((a, it) => a + it.tokens, 0);
+  const totalCost = withData.reduce((a, it) => a + (it.cost || 0), 0);
+  bodyEl.innerHTML = `
+    <table class="pricing-ref__table months-models__table">
+      <thead>
+        <tr><th>period / model</th><th>tokens</th><th>cost</th></tr>
+      </thead>
+      <tbody>${rows}</tbody>
+      <tfoot>
+        <tr class="months-models__total">
+          <td class="months-models__name">total</td>
+          <td>${fmtTokensCompact(totalTokens)}</td>
+          <td>${fmtCost(totalCost)}</td>
+        </tr>
+      </tfoot>
+    </table>
+  `;
 }
 
 function rateForModel(model, pricing) {
@@ -716,6 +856,19 @@ function chartItemsForRange() {
       })),
     };
   }
+  if (chartRange === 'year') {
+    const months = stats.last12Months || [];
+    return {
+      title: '▸ last 12 months',
+      cols: months.length || 12,
+      items: months.map((m) => ({
+        tokens: m.tokens,
+        isCurrent: m.isCurrent,
+        label: MONTH_SHORT[m.month],
+        tooltip: `${MONTH_SHORT[m.month]} ${m.year} · ${fmtTokensCompact(m.tokens)} tokens`,
+      })),
+    };
+  }
   // hours (default)
   const hours = stats.last24Hours || [];
   return {
@@ -780,10 +933,11 @@ function renderTop(el, list) {
       const rank = String(i + 1).padStart(2, '0');
       const widthPct = Math.max(2, (p.tokens / max) * 100);
       const cost = p.cost && p.cost > 0 ? `<span class="top__cost">${fmtCost(p.cost)}</span>` : '';
+      const memBadge = p.isMemory ? '<span class="top__badge" title="claude-mem memory infrastructure">mem</span>' : '';
       return `
         <li class="top__item">
           <span class="top__rank">${rank}</span>
-          <span class="top__name" title="${escapeHtml(p.name)}">${escapeHtml(p.name)}</span>
+          <span class="top__name" title="${escapeHtml(p.name)}">${escapeHtml(p.name)}${memBadge}</span>
           <span class="top__tokens">${fmtTokensCompact(p.tokens)}</span>
           ${cost}
           <span class="top__bar"><span style="width:${widthPct.toFixed(1)}%"></span></span>

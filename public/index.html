@@ -238,9 +238,15 @@
               <button class="chart-tab" data-range="days" role="tab">days</button>
               <button class="chart-tab" data-range="weeks" role="tab">weeks</button>
               <button class="chart-tab" data-range="months" role="tab">months</button>
+              <button class="chart-tab" data-range="year" role="tab">year</button>
             </div>
           </div>
           <div class="chart24" id="chart24" role="img" aria-label="Token consumption chart"></div>
+        </div>
+
+        <div class="memory-split" id="memory-split" hidden>
+          <span class="memory-split__label">memory infra (claude-mem observer):</span>
+          <span class="memory-split__vals" id="memory-split-vals"></span>
         </div>
 
         <div class="tops">
@@ -256,6 +262,26 @@
             <h3 class="sec-head">▸ top · month</h3>
             <ol class="top__list" id="top-month"></ol>
           </div>
+        </div>
+
+        <div class="tops">
+          <div class="top">
+            <h3 class="sec-head">▸ by model · today</h3>
+            <ol class="top__list" id="models-today"></ol>
+          </div>
+          <div class="top">
+            <h3 class="sec-head">▸ by model · week</h3>
+            <ol class="top__list" id="models-week"></ol>
+          </div>
+          <div class="top">
+            <h3 class="sec-head">▸ by model · month</h3>
+            <ol class="top__list" id="models-month"></ol>
+          </div>
+        </div>
+
+        <div class="months-models">
+          <h3 class="sec-head" id="months-models-title">▸ history · by model</h3>
+          <div class="months-models__body" id="months-models-body"></div>
         </div>
 
         <details class="pricing-ref" id="pricing-ref">

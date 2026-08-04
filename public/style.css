@@ -2425,3 +2425,76 @@ code {
   }
   .scanlines { display: none; }
 }
+
+/* ─── model breakdown & memory split (2026-08 rebuild) ─────────────────── */
+
+.memory-split {
+  display: flex;
+  gap: 0.6rem;
+  align-items: baseline;
+  margin: 0.8rem 0 0;
+  padding: 0.45rem 0.7rem;
+  border: 1px dashed var(--border);
+  border-radius: 4px;
+  font-size: 0.68rem;
+}
+
+.memory-split__label {
+  color: var(--text-dim);
+}
+
+.memory-split__vals {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.top__badge {
+  margin-left: 0.4rem;
+  padding: 0 0.3rem;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  font-size: 0.58rem;
+  color: var(--text-dim);
+  text-transform: lowercase;
+}
+
+.months-models {
+  margin-top: 1.2rem;
+}
+
+.months-models__body {
+  margin-top: 0.5rem;
+}
+
+.months-models__table td:nth-child(2),
+.months-models__table td:nth-child(3),
+.months-models__table th:nth-child(2),
+.months-models__table th:nth-child(3) {
+  white-space: nowrap;
+}
+
+.months-models__month td {
+  border-top: 1px solid var(--border);
+  color: var(--text-bright);
+  font-weight: 600;
+}
+
+.months-models__month--now td {
+  color: var(--accent, var(--text-bright));
+}
+
+.months-models__model {
+  padding-left: 1.4rem !important;
+  color: var(--text-dim);
+}
+
+.months-models__name {
+  letter-spacing: 0.03em;
+  text-transform: lowercase;
+}
+
+.months-models__total td {
+  border-top: 2px solid var(--border);
+  color: var(--text-bright);
+  font-weight: 700;
+}

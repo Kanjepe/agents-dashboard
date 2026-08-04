@@ -9,6 +9,7 @@ import { dirname, join } from 'node:path';
 import { scanAllSessions, loadSession, getProjectsDir } from './lib/sessions.js';
 import { detectClaudeProcesses } from './lib/processes.js';
 import { aggregateStats, invalidateStatsCache } from './lib/stats.js';
+import { aggregateCodexStats } from './lib/codex.js';
 import { getRegistry, getSkillDetail, getAgentDetail } from './lib/registry.js';
 
 function aggregateActivity(sessions) {
@@ -119,10 +120,11 @@ function aggregateActivity(sessions) {
 }
 
 async function buildSnapshot() {
-  const [sessions, processes, stats, registry] = await Promise.all([
+  const [sessions, processes, stats, statsCodex, registry] = await Promise.all([
     scanAllSessions(),
     detectClaudeProcesses(),
     aggregateStats(),
+    aggregateCodexStats(),
     getRegistry(),
   ]);
   const activity = aggregateActivity(sessions);
@@ -130,6 +132,7 @@ async function buildSnapshot() {
     sessions,
     processes,
     stats,
+    statsCodex,
     activity,
     registry,
     scannedAt: new Date().toISOString(),

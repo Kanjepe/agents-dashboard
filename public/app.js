@@ -43,9 +43,26 @@ const topTodayEl = document.getElementById('top-today');
 const topWeekEl = document.getElementById('top-week');
 const topMonthEl = document.getElementById('top-month');
 
+const providerTabs = document.querySelectorAll('.provider-tabs .chart-tab');
+providerTabs.forEach((btn) => {
+  btn.addEventListener('click', () => {
+    providerView = btn.dataset.provider;
+    providerTabs.forEach((b) => {
+      b.dataset.active = String(b.dataset.provider === providerView);
+    });
+    renderStats();
+  });
+});
+
 let sessions = new Map();
 let processes = [];
 let stats = null;
+let statsCodex = null;
+let providerView = 'claude';
+
+function activeStats() {
+  return providerView === 'codex' ? statsCodex : stats;
+}
 let activity = { agents: [], skills: [], timeline: [] };
 let registry = { skills: [], agents: [], skillGroups: [], agentDomains: [] };
 let agentsSearch = '';
@@ -541,44 +558,48 @@ function render() {
 }
 
 function renderStats() {
-  if (!stats) return;
+  // Header "today" chip always reflects Claude (main workload) stats.
+  if (stats) {
+    todayDateEl.textContent = fmtDateLong(stats.todayDate);
+    todayTokensEl.textContent = fmtTokensCompact(stats.today);
+  }
 
-  todayDateEl.textContent = fmtDateLong(stats.todayDate);
-  todayTokensEl.textContent = fmtTokensCompact(stats.today);
+  const st = activeStats();
+  if (!st) return;
 
-  totalTodayEl.textContent = fmtTokensCompact(stats.today);
-  totalWeekEl.textContent = fmtTokensCompact(stats.week);
-  totalMonthEl.textContent = fmtTokensCompact(stats.month);
+  totalTodayEl.textContent = fmtTokensCompact(st.today);
+  totalWeekEl.textContent = fmtTokensCompact(st.week);
+  totalMonthEl.textContent = fmtTokensCompact(st.month);
 
-  if (totalTodayCostEl) totalTodayCostEl.textContent = fmtCost(stats.todayCost || 0);
-  if (totalWeekCostEl) totalWeekCostEl.textContent = fmtCost(stats.weekCost || 0);
-  if (totalMonthCostEl) totalMonthCostEl.textContent = fmtCost(stats.monthCost || 0);
+  if (totalTodayCostEl) totalTodayCostEl.textContent = fmtCost(st.todayCost || 0);
+  if (totalWeekCostEl) totalWeekCostEl.textContent = fmtCost(st.weekCost || 0);
+  if (totalMonthCostEl) totalMonthCostEl.textContent = fmtCost(st.monthCost || 0);
 
-  totalTodayDateEl.textContent = stats.todayDate || '';
-  totalWeekHintEl.textContent = `from ${stats.weekStart}`;
-  totalMonthHintEl.textContent = `from ${stats.monthStart}`;
+  totalTodayDateEl.textContent = st.todayDate || '';
+  totalWeekHintEl.textContent = `from ${st.weekStart}`;
+  totalMonthHintEl.textContent = `from ${st.monthStart}`;
 
-  const monthBase = Math.max(stats.month, 1);
-  const todayPct = Math.min(100, (stats.today / monthBase) * 100);
-  const weekPct = Math.min(100, (stats.week / monthBase) * 100);
+  const monthBase = Math.max(st.month, 1);
+  const todayPct = Math.min(100, (st.today / monthBase) * 100);
+  const weekPct = Math.min(100, (st.week / monthBase) * 100);
   totalTodayBarEl.style.width = `${todayPct.toFixed(1)}%`;
   totalWeekBarEl.style.width = `${weekPct.toFixed(1)}%`;
   totalMonthBarEl.style.width = `100%`;
 
   if (statsMetaEl) {
-    statsMetaEl.textContent = `${stats.fileCount} files scanned`;
+    statsMetaEl.textContent = `${st.fileCount} files scanned · ${providerView}`;
   }
 
   renderChart24();
-  renderTop(topTodayEl, stats.topToday);
-  renderTop(topWeekEl, stats.topWeek);
-  renderTop(topMonthEl, stats.topMonth);
-  renderModels('models-today', stats.models?.today);
-  renderModels('models-week', stats.models?.week);
-  renderModels('models-month', stats.models?.month);
-  renderMemorySplit(stats.memory);
+  renderTop(topTodayEl, st.topToday);
+  renderTop(topWeekEl, st.topWeek);
+  renderTop(topMonthEl, st.topMonth);
+  renderModels('models-today', st.models?.today);
+  renderModels('models-week', st.models?.week);
+  renderModels('models-month', st.models?.month);
+  renderMemorySplit(st.memory);
   renderHistoryModels();
-  renderPricingRef(stats.pricing, stats.pricingVerifiedAt);
+  renderPricingRef(st.pricing, st.pricingVerifiedAt);
 }
 
 // Mirrors lib/pricing.js FAMILIES (base rates; server table wins when present).
@@ -659,6 +680,7 @@ function renderMemorySplit(memory) {
 
 // Period rows for the by-model history table, following the selected chart tab.
 function historyItemsForRange() {
+  const stats = activeStats();
   if (!stats) return { title: '', items: [] };
   if (chartRange === 'days') {
     return {
@@ -779,9 +801,23 @@ function renderPricingRef(pricing, verifiedAt) {
   const bodyEl = document.getElementById('pricing-ref-body');
   if (!bodyEl) return;
   const table = pricing && pricing.length ? pricing : PRICING_FALLBACK;
+  // Codex (OpenAI) rows carry cachedInput; Anthropic rows carry cacheRead/cacheCreate.
+  const isCodex = table[0] && table[0].cachedInput != null;
+  const headCols = isCodex
+    ? '<th>model</th><th>input</th><th>cached input</th><th>output</th>'
+    : '<th>model</th><th>input</th><th>output</th><th>cache read</th><th>cache create</th>';
   const rows = table
-    .map(
-      (p) => `
+    .map((p) =>
+      isCodex
+        ? `
+        <tr>
+          <td class="pricing-ref__model">${escapeHtml(p.label)}</td>
+          <td>${fmtRate(p.input)}</td>
+          <td>${fmtRate(p.cachedInput)}</td>
+          <td>${fmtRate(p.output)}</td>
+        </tr>
+      `
+        : `
         <tr>
           <td class="pricing-ref__model">${escapeHtml(p.label)}</td>
           <td>${fmtRate(p.input)}</td>
@@ -792,22 +828,20 @@ function renderPricingRef(pricing, verifiedAt) {
       `,
     )
     .join('');
+  const source = isCodex ? 'OpenAI publiskās cenas' : 'Anthropic publiskās cenas';
+  const formula = isCodex
+    ? '<code>cost = ((input − cached) × rate + cached × rate + output × rate) / 1 000 000</code> · long-context premium virs 272K ievades tokeniem'
+    : '<code>cost = (input × rate + output × rate + cache_read × rate + cache_create × rate) / 1 000 000</code>';
   bodyEl.innerHTML = `
     <table class="pricing-ref__table">
       <thead>
-        <tr>
-          <th>model</th>
-          <th>input</th>
-          <th>output</th>
-          <th>cache read</th>
-          <th>cache create</th>
-        </tr>
+        <tr>${headCols}</tr>
       </thead>
       <tbody>${rows}</tbody>
     </table>
     <p class="pricing-ref__note">
-      Cenas USD par <strong>1 000 000 tokeniem</strong>. Avots: Anthropic publiskās cenas${verifiedAt ? ` (pārbaudīts ${verifiedAt})` : ''}.<br>
-      Formula: <code>cost = (input × rate + output × rate + cache_read × rate + cache_create × rate) / 1 000 000</code><br>
+      Cenas USD par <strong>1 000 000 tokeniem</strong>. Avots: ${source}${verifiedAt ? ` (pārbaudīts ${verifiedAt})` : ''}.<br>
+      Formula: ${formula}<br>
       Katra ziņojuma izmaksa tiek aprēķināta ar tā konkrētā modeļa likmi (sesijas vidū iespējams modeļa maiņa — tādā gadījumā summas ir korektas pa segmentiem).
     </p>
   `;
@@ -822,6 +856,7 @@ function hourToAmPm(h) {
 const MONTH_SHORT = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
 
 function chartItemsForRange() {
+  const stats = activeStats();
   if (!stats) return { items: [], title: '', cols: 24 };
   if (chartRange === 'days') {
     const days = stats.last7Days || [];
@@ -894,7 +929,7 @@ function chartItemsForRange() {
 }
 
 function renderChart24() {
-  if (!stats || !chart24El) return;
+  if (!activeStats() || !chart24El) return;
   const { items, title, cols } = chartItemsForRange();
   if (chartTitleEl) chartTitleEl.textContent = title;
   chart24El.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
@@ -1435,6 +1470,7 @@ function connect() {
       sessions = new Map((msg.sessions || []).map((s) => [s.sessionId, s]));
       processes = msg.processes || [];
       if (msg.stats) stats = msg.stats;
+      if (msg.statsCodex) statsCodex = msg.statsCodex;
       if (msg.activity) activity = msg.activity;
       if (msg.registry) registry = msg.registry;
       render();

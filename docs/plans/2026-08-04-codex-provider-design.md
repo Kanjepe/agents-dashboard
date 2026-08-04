@@ -78,12 +78,19 @@ therefore split: uncached input = `input_tokens - cached_input_tokens`.
 Model appears in `turn_context` / response payloads: `"model":"gpt-5.6-sol"` (observed).
 One session can in principle switch models per turn — capture per `turn_context`.
 
-## OpenAI pricing (TO VERIFY at implementation time — do not trust from memory)
+## OpenAI pricing (✅ VERIFIED 2026-08-04 — developers.openai.com/api/docs/pricing)
 
-Look up current rates at https://platform.openai.com/docs/pricing for the observed model IDs
-(gpt-5.x family incl. `gpt-5.6-sol`). Needed per model: input $/1M, cached-input $/1M,
-output $/1M. Add `PRICING_VERIFIED_AT` for the OpenAI table too, same staleness rule as
-Anthropic. Reasoning tokens bill as output tokens.
+Models observed in local logs: `gpt-5.5` (78×), `gpt-5.4-mini` (18×), `gpt-5.6-sol` (6×).
+
+| Model | Input $/1M | Cached input $/1M | Output $/1M | Long-context (>272K input) |
+|---|---|---|---|---|
+| gpt-5.6-sol | 5.00 | 0.50 | 30.00 | 10 / 1 / 45 |
+| gpt-5.5 | 5.00 | 0.50 | 30.00 | 10 / 1 / 45 |
+| gpt-5.4-mini | 0.75 | 0.075 | 4.50 | (no long-context tier) |
+
+Notes: cached input = 0.1× input. No charge for cache writes on OpenAI (`cache_write_input_tokens`
+needs no separate rate). `output_tokens` already includes `reasoning_output_tokens` (verified:
+input+output = total in samples). Long-context threshold is per request: 272K input tokens.
 
 ## Implementation plan (when we build it)
 

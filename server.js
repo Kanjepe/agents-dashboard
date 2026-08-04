@@ -9,7 +9,7 @@ import { dirname, join } from 'node:path';
 import { scanAllSessions, loadSession, getProjectsDir } from './lib/sessions.js';
 import { detectClaudeProcesses } from './lib/processes.js';
 import { aggregateStats, invalidateStatsCache } from './lib/stats.js';
-import { aggregateCodexStats } from './lib/codex.js';
+import { aggregateCodexStats, getCodexSessionsDir, invalidateCodexStatsCache } from './lib/codex.js';
 import { getRegistry, getSkillDetail, getAgentDetail } from './lib/registry.js';
 
 function aggregateActivity(sessions) {
@@ -124,7 +124,10 @@ async function buildSnapshot() {
     scanAllSessions(),
     detectClaudeProcesses(),
     aggregateStats(),
-    aggregateCodexStats(),
+    aggregateCodexStats().catch((err) => {
+      console.error('[codex] stats aggregation failed:', err.message);
+      return null;
+    }),
     getRegistry(),
   ]);
   const activity = aggregateActivity(sessions);
@@ -302,6 +305,20 @@ watcher.on('add', onJsonlChange);
 watcher.on('change', onJsonlChange);
 watcher.on('error', (err) => console.error('[watch] error:', err.message));
 
+const codexSessionsDir = getCodexSessionsDir();
+const codexWatcher = chokidar.watch(`${codexSessionsDir.replace(/\\/g, '/')}/**/*.jsonl`, {
+  ignoreInitial: true,
+  awaitWriteFinish: { stabilityThreshold: 200, pollInterval: 100 },
+});
+
+function onCodexJsonlChange() {
+  invalidateCodexStatsCache();
+}
+
+codexWatcher.on('add', onCodexJsonlChange);
+codexWatcher.on('change', onCodexJsonlChange);
+codexWatcher.on('error', (err) => console.error('[codex-watch] error:', err.message));
+
 server.listen(PORT, HOST, () => {
   const displayHost = HOST === '127.0.0.1' || HOST === '::1' ? 'localhost' : HOST;
   console.log(`\n  AI Session Telemetry`);
@@ -314,5 +331,6 @@ server.listen(PORT, HOST, () => {
 process.on('SIGINT', () => {
   console.log('\n  Shutting down...');
   watcher.close();
+  codexWatcher.close();
   server.close(() => process.exit(0));
 });

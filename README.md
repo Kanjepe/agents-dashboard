@@ -1,8 +1,8 @@
 # AI Session Telemetry
 
-Local, real-time telemetry for AI coding sessions, agents, skills and cost — a passive, read-only observer over `~/.claude/projects/` JSONL files.
+Local, real-time telemetry for AI coding sessions, agents, skills and cost — a passive, read-only observer over Claude Code and Codex CLI JSONL files.
 
-Works for anyone running Claude Code locally; no organization-specific assumptions.
+Works for anyone running Claude Code, Codex CLI, or both locally; no organization-specific assumptions.
 
 ![status](https://img.shields.io/badge/status-MVP-7AB648)
 ![node](https://img.shields.io/badge/node-%3E%3D18-7AB648)
@@ -13,7 +13,7 @@ Works for anyone running Claude Code locally; no organization-specific assumptio
 ## Table of Contents
 
 1. [What it does](#what-it-does)
-2. [Where Claude Code reads things from](#where-claude-code-reads-things-from)
+2. [Where telemetry data comes from](#where-telemetry-data-comes-from)
 3. [Quick start](#quick-start)
 4. [Install on a different PC](#install-on-a-different-pc)
 5. [How to launch the server](#how-to-launch-the-server)
@@ -26,8 +26,9 @@ Works for anyone running Claude Code locally; no organization-specific assumptio
 
 ## What it does
 
-- Watches every Claude Code session JSONL file in real time
-- Renders one card per session: status, model, tokens, tool usage, current tool, cost estimate, live burn rate (tok/min), and recent tool chain
+- Watches Claude Code and Codex CLI session JSONL files in real time
+- Renders one live card per Claude session: status, model, tokens, tool usage, current tool, cost estimate, live burn rate (tok/min), and recent tool chain
+- Provides separate `claude | codex` statistics views with provider-specific model pricing and cost totals
 - Token-usage chart with tabbed range toggle: **hours** (last 24h with live current-hour pulse) · **days** (last 7d) · **weeks** (last 4w) · **months** (last 6m)
 - Discovers and lists installed skills and subagents — both global and project-scoped
 - Live updates via WebSocket — no manual refresh needed
@@ -35,9 +36,9 @@ Works for anyone running Claude Code locally; no organization-specific assumptio
 
 ---
 
-## Where Claude Code reads things from
+## Where telemetry data comes from
 
-The dashboard mirrors Claude Code's own conventions. There are **two scopes**:
+The dashboard reads both providers' local files. Claude Code also has global and project scopes for skills and agents:
 
 ```
 ~/.claude/                                  ← user-global (always available)
@@ -48,9 +49,13 @@ The dashboard mirrors Claude Code's own conventions. There are **two scopes**:
 <your-project>/.claude/                     ← project-scoped (only when cwd matches)
 ├── agents/<domain>/<agent>.md               ← project subagents
 └── skills/<skill>/SKILL.md                  ← project skills
+
+~/.codex/
+└── sessions/YYYY/MM/DD/rollout-*.jsonl      ← Codex CLI statistics source
 ```
 
-- **Session JSONLs** (`~/.claude/projects/`) are the dashboard's primary data source — every live card, token chart, and cost figure is derived from these files.
+- **Claude session JSONLs** (`~/.claude/projects/`) drive live cards and the Claude statistics view.
+- **Codex rollout JSONLs** (`~/.codex/sessions/`) drive the Codex statistics view. Codex live session cards are not part of the current scope.
 - **Global skills/agents** are listed under the `▸ skills` and `▸ agents` tabs as-is.
 - **Project-scoped skills/agents** show up under the `▸ projects` tab, grouped by project. For this to work, set `PROJECTS_ROOT` to the folder where your code lives (default: `~/Projects`) — see [Projects tab](#projects-tab) below.
 
@@ -60,7 +65,7 @@ Nothing is written to these locations — the dashboard is read-only.
 
 ## Quick start
 
-Requirements: **Node.js 18 or newer** and an active Claude Code installation (so that `~/.claude/projects/` exists on your machine).
+Requirements: **Node.js 18 or newer** and at least one local Claude Code or Codex CLI session directory.
 
 ```bash
 git clone https://github.com/Kanjepe/ai-session-telemetry.git
@@ -75,7 +80,7 @@ On Windows you can also double-click `start.bat` after the first `npm install` �
 
 To stop the server: press `Ctrl+C` in the terminal.
 
-> The dashboard reads from `~/.claude/projects/` on the machine it runs on. It does not connect to anything remote. Run it on the same PC where Claude Code is installed.
+> The dashboard reads from `~/.claude/projects/` and `~/.codex/sessions/` on the machine it runs on. It does not connect to anything remote. Run it on the same PC as the CLI providers you want to observe.
 
 ---
 
@@ -155,7 +160,7 @@ npm start
 
 Then open <http://localhost:4173> in any browser.
 
-> **Important:** the dashboard reads from `~/.claude/projects/` on the **machine it runs on**. It does not connect to remote machines. Run it on the same PC where Claude Code is installed.
+> **Important:** the dashboard reads from `~/.claude/projects/` and `~/.codex/sessions/` on the **machine it runs on**. It does not connect to remote machines.
 
 ---
 
@@ -388,20 +393,22 @@ PORT=8080 npm start
 
 ## Troubleshooting
 
-### "No sessions appear"
+### "No sessions or statistics appear"
 
-The dashboard reads from `~/.claude/projects/`. If that folder does not exist, no Claude Code session has run yet on this PC. Open Claude Code once, then refresh the dashboard.
+The dashboard reads Claude sessions from `~/.claude/projects/` and Codex statistics from `~/.codex/sessions/`. If a provider's folder does not exist, run that CLI once, then refresh the dashboard.
 
 Verify:
 
 ```powershell
 # Windows
 Test-Path "$env:USERPROFILE\.claude\projects"
+Test-Path "$env:USERPROFILE\.codex\sessions"
 ```
 
 ```bash
 # macOS / Linux
 ls ~/.claude/projects
+ls ~/.codex/sessions
 ```
 
 ### "Address already in use" / `EADDRINUSE`
@@ -428,7 +435,7 @@ Initial scan parses up to 24h-old sessions. If you have very large JSONL files (
 
 ### Cards never update in real time
 
-`chokidar` falls back to polling on some network drives. If `~/.claude/projects/` lives on a synced drive (OneDrive, Dropbox), watch events may be delayed. The periodic 5-second rescan acts as a fallback.
+`chokidar` falls back to polling on some network drives. If a provider directory lives on a synced drive (OneDrive, Dropbox), watch events may be delayed. The periodic 5-second snapshot acts as a fallback. Live cards are Claude-only; Codex rollout changes update the Codex statistics view.
 
 ### Need to debug
 
@@ -448,6 +455,8 @@ Logs print to the terminal where you started the server.
 ┌──────────────────────────────────────────────────────────────┐
 │  Claude Code CLI                                             │
 │  └─ writes JSONL → ~/.claude/projects/<project>/<uuid>.jsonl │
+│  Codex CLI                                                   │
+│  └─ writes JSONL → ~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl│
 └──────────────────────────┬───────────────────────────────────┘
                            │ file events (chokidar)
                            ▼
@@ -457,6 +466,8 @@ Logs print to the terminal where you started the server.
 │  │                   adds costUsd + tokensLast5Min           │
 │  ├─ lib/stats.js     aggregate tokens → 24h/7d/4w/6m         │
 │  ├─ lib/pricing.js   Anthropic model pricing → cost          │
+│  ├─ lib/codex.js     parse + aggregate Codex rollouts         │
+│  ├─ lib/codex-pricing.js  OpenAI model pricing → cost         │
 │  ├─ lib/registry.js  read .claude/skills + .claude/agents    │
 │  └─ ws broadcasts snapshots every 5 s + on file change       │
 └──────────────────────────┬───────────────────────────────────┘
@@ -479,6 +490,8 @@ ai-session-telemetry/
 │   ├── sessions.js        JSONL parser, status logic, cost/burn aggregation
 │   ├── stats.js           token aggregation: 24h / days / weeks / months
 │   ├── pricing.js         Anthropic model pricing (used for cost estimates)
+│   ├── codex.js           Codex rollout parser and statistics adapter
+│   ├── codex-pricing.js   OpenAI model pricing for Codex costs
 │   ├── processes.js       OS-level claude process detection
 │   ├── registry.js        skill / agent / project library discovery
 │   └── utils.js           shared helpers (day keys, project name decoding)
@@ -517,6 +530,8 @@ Per session, the parser walks every JSONL line and accumulates:
 - **Subagents / Skills:** every `Task` and `Skill` invocation with timestamps and completion state
 
 Across all sessions, `lib/stats.js` rolls things up into hourly / daily / weekly / monthly token buckets that feed the token-statistics panel.
+
+For Codex, `lib/codex.js` reads per-turn `last_token_usage`, preserves model switches, applies OpenAI cached-input pricing, and emits the same statistics contract as `lib/stats.js`. The browser switches between the two provider contracts without merging their token semantics.
 
 ---
 

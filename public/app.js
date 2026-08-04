@@ -26,7 +26,7 @@ const totalTodayCostEl = document.getElementById('total-today-cost');
 const totalWeekCostEl = document.getElementById('total-week-cost');
 const totalMonthCostEl = document.getElementById('total-month-cost');
 const chartTitleEl = document.getElementById('chart-title');
-const chartTabs = document.querySelectorAll('.chart-tab');
+const chartTabs = document.querySelectorAll('.chart-tabs:not(.provider-tabs) .chart-tab');
 let chartRange = 'hours';
 
 chartTabs.forEach((btn) => {

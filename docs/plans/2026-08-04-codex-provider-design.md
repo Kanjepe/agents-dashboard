@@ -1,6 +1,6 @@
 # Codex provider view — research & design
 
-**Status:** researched + design agreed, not yet implemented.
+**Status:** implemented and verified on 2026-08-04. Codex statistics are available through the separate `claude | codex` provider toggle; Claude remains the backward-compatible default.
 **Decision (2026-08-04):** separate provider views with a `claude | codex` toggle in the stats panel — NOT a merged single view. Render functions are reused 1:1 because the Codex adapter must emit the exact same `stats` data contract as `aggregateStats()`. A combined "both" button (totals-only) may come later.
 
 ## Why separate views
@@ -20,7 +20,7 @@ Everything is local and read-only — same approach as Claude JSONL scanning. No
 | Prompt history | `~/.codex/history.jsonl` |
 | Other (not needed) | `~/.codex/logs_2.sqlite`, `goals_1.sqlite`, `memories_1.sqlite`, `config.toml` |
 
-Observed volume: 12 rollout files (2026-04-29 … 2026-07-28). CLI version seen: `0.145.0-alpha.30`.
+Observed volume during implementation: 15 rollout files. CLI version initially seen: `0.145.0-alpha.30`.
 
 ## Rollout JSONL format (observed sample)
 
@@ -92,7 +92,7 @@ Notes: cached input = 0.1× input. No charge for cache writes on OpenAI (`cache_
 needs no separate rate). `output_tokens` already includes `reasoning_output_tokens` (verified:
 input+output = total in samples). Long-context threshold is per request: 272K input tokens.
 
-## Implementation plan (when we build it)
+## Implemented architecture
 
 1. `lib/codex-pricing.js` — OpenAI per-model table, same shape as `lib/pricing.js`
    (familyFor / rateForModel / estimateCostUsd / modelLabel, `estimated` flag for unknowns).
@@ -101,15 +101,15 @@ input+output = total in samples). Long-context threshold is per request: 272K in
    `{today, week, month, *Cost, models{...}, last24Hours[], last7Days[], last4Weeks[],
    last6Months[], last12Months[], topToday/Week/Month, pricing, pricingVerifiedAt, fileCount}`
    — `memory` stays absent (Claude-only section, UI hides it).
-3. `server.js` — snapshot gains `stats: {claude, codex}` (or `statsCodex` alongside; pick
-   whichever keeps the WS payload backward-compatible).
-4. `public/` — provider toggle in the stats panel head; `renderStats(currentProviderStats)`;
+3. `server.js` — snapshot keeps backward-compatible `stats` for Claude and adds `statsCodex`;
+   Codex aggregation failures are isolated so they cannot prevent Claude snapshots.
+4. `public/` — provider toggle in the stats panel head; `renderStats()` selects `activeStats()`;
    hide memory-split + observer badges in Codex view.
 5. Tests: codex-pricing tests + a fixture rollout file for the delta logic.
-6. Live sessions view for Codex: OUT OF SCOPE v1 (stats only); revisit if needed.
+6. Live sessions view for Codex remains OUT OF SCOPE v1 (stats only); revisit if needed.
 
 ## Open questions
 
 - ~~Does `token_count.info` include `last_token_usage`?~~ ✅ Yes (all 12 files) — use it directly.
-- Exact current OpenAI prices for `gpt-5.6-sol` (and other gpt-5.x variants in the logs).
-- Does Codex have a cache TTL split like Anthropic 5m/1h? (assume no until documented)
+- ✅ Exact OpenAI prices for the observed `gpt-5.6-sol`, `gpt-5.5`, and `gpt-5.4-mini` models were verified on 2026-08-04 and recorded above.
+- No separate Codex cache TTL tier is present in the observed usage format; cache writes remain unbilled unless the documented format changes.

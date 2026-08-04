@@ -80,18 +80,46 @@ test('rateForModel: sonnet 5 intro pricing until 2026-09-01', () => {
   assert.equal(full.output, 15);
 });
 
-test('rateForModel: [1m] premium applies to sonnet 4.x but not opus 4.7+', () => {
-  const s = rateForModel('claude-sonnet-4-5-20250929[1m]');
+test('rateForModel: [1m] premium requires the longContext flag (per-request, not per-model)', () => {
+  // Without the flag the base rate applies — a [1m] model string alone is not enough.
+  const sBase = rateForModel('claude-sonnet-4-5-20250929[1m]');
+  assert.equal(sBase.input, 3);
+  assert.equal(sBase.output, 15);
+  const s = rateForModel('claude-sonnet-4-5-20250929[1m]', null, { longContext: true });
   assert.equal(s.input, 6);
   assert.equal(s.output, 22.5);
-  const o46 = rateForModel('claude-opus-4-6[1m]');
+  const o46 = rateForModel('claude-opus-4-6[1m]', null, { longContext: true });
   assert.equal(o46.input, 10);
   assert.equal(o46.output, 37.5);
-  const o5 = rateForModel('claude-opus-5[1m]');
+  // 4.7+/5/Fable have standard 1M pricing — no premium even over 200K
+  const o5 = rateForModel('claude-opus-5[1m]', null, { longContext: true });
   assert.equal(o5.input, 5);
   assert.equal(o5.output, 25);
-  const f = rateForModel('claude-fable-5[1m]');
+  const f = rateForModel('claude-fable-5[1m]', null, { longContext: true });
   assert.equal(f.input, 10);
+});
+
+test('estimateCostUsd: [1m] premium kicks in only above 200K input-side tokens', () => {
+  const model = 'claude-sonnet-4-5-20250929[1m]';
+  // 100K input — below threshold, base rate
+  assert.equal(estimateCostUsd({ input: 100_000 }, model), 0.3);
+  // 1M input — above threshold, premium rate
+  assert.equal(estimateCostUsd({ input: 1_000_000 }, model), 6);
+  // cache reads count toward the threshold
+  const withCache = estimateCostUsd({ input: 10_000, cacheRead: 500_000 }, model);
+  assert.ok(Math.abs(withCache - 0.36) < 1e-9, `expected ~0.36, got ${withCache}`);
+});
+
+test('rateForModel: opus fast variants are $10/$50', () => {
+  const r = rateForModel('claude-opus-4-6-fast');
+  assert.equal(r.family, 'opus-fast');
+  assert.equal(r.input, 10);
+  assert.equal(r.output, 50);
+});
+
+test('rateForModel: unknown model is flagged as estimated', () => {
+  assert.equal(rateForModel('mystery-model').estimated, true);
+  assert.equal(rateForModel('claude-opus-5').estimated, undefined);
 });
 
 test('rateForModel: unknown model falls back to sonnet base rates', () => {
@@ -157,4 +185,8 @@ test('modelLabel: normalizes model ids to short labels', () => {
 test('modelLabel: keeps [1m] marker and passes through unknowns', () => {
   assert.equal(modelLabel('claude-sonnet-4-5-20250929[1m]'), 'sonnet 4.5 [1m]');
   assert.equal(modelLabel('<synthetic>'), '<synthetic>');
+});
+
+test('modelLabel: keeps fast marker', () => {
+  assert.equal(modelLabel('claude-opus-4-6-fast'), 'opus 4.6 fast');
 });

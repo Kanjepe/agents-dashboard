@@ -578,12 +578,13 @@ function renderStats() {
   renderModels('models-month', stats.models?.month);
   renderMemorySplit(stats.memory);
   renderHistoryModels();
-  renderPricingRef(stats.pricing);
+  renderPricingRef(stats.pricing, stats.pricingVerifiedAt);
 }
 
 // Mirrors lib/pricing.js FAMILIES (base rates; server table wins when present).
 const PRICING_FALLBACK = [
   { family: 'fable-5', label: 'fable 5 / mythos 5', input: 10, output: 50, cacheRead: 1, cacheCreate: 12.5 },
+  { family: 'opus-fast', label: 'opus fast', input: 10, output: 50, cacheRead: 1, cacheCreate: 12.5 },
   { family: 'opus-modern', label: 'opus 4.5 – 5', input: 5, output: 25, cacheRead: 0.5, cacheCreate: 6.25 },
   { family: 'opus-legacy', label: 'opus ≤ 4.1', input: 15, output: 75, cacheRead: 1.5, cacheCreate: 18.75 },
   { family: 'sonnet-5', label: 'sonnet 5', input: 3, output: 15, cacheRead: 0.3, cacheCreate: 3.75 },
@@ -597,6 +598,7 @@ function familyForModel(model) {
   const m = String(model).toLowerCase();
   if (m.includes('fable') || m.includes('mythos')) return 'fable-5';
   if (m.includes('opus')) {
+    if (m.includes('fast')) return 'opus-fast';
     return /opus-5|opus-4-[5678]/.test(m) ? 'opus-modern' : 'opus-legacy';
   }
   if (/sonnet-5/.test(m)) return 'sonnet-5';
@@ -619,10 +621,14 @@ function renderModels(elId, list) {
       const rank = String(i + 1).padStart(2, '0');
       const widthPct = Math.max(2, (m.tokens / max) * 100);
       const cost = m.cost > 0 ? `<span class="top__cost">${fmtCost(m.cost)}</span>` : '';
+      const estTitle = m.estimated
+        ? ' — estimated (unknown model, priced at sonnet rates)'
+        : '';
+      const estMark = m.estimated ? '~' : '';
       return `
         <li class="top__item">
           <span class="top__rank">${rank}</span>
-          <span class="top__name" title="${escapeHtml(m.model)}">${escapeHtml(m.label || m.model)}</span>
+          <span class="top__name" title="${escapeHtml(m.model)}${estTitle}">${estMark}${escapeHtml(m.label || m.model)}</span>
           <span class="top__tokens">${fmtTokensCompact(m.tokens)}</span>
           ${cost}
           <span class="top__bar"><span style="width:${widthPct.toFixed(1)}%"></span></span>
@@ -769,7 +775,7 @@ function fmtRate(usd) {
   return `$${usd.toFixed(2)}`;
 }
 
-function renderPricingRef(pricing) {
+function renderPricingRef(pricing, verifiedAt) {
   const bodyEl = document.getElementById('pricing-ref-body');
   if (!bodyEl) return;
   const table = pricing && pricing.length ? pricing : PRICING_FALLBACK;
@@ -800,7 +806,7 @@ function renderPricingRef(pricing) {
       <tbody>${rows}</tbody>
     </table>
     <p class="pricing-ref__note">
-      Cenas USD par <strong>1 000 000 tokeniem</strong>. Avots: Anthropic publiskās cenas.<br>
+      Cenas USD par <strong>1 000 000 tokeniem</strong>. Avots: Anthropic publiskās cenas${verifiedAt ? ` (pārbaudīts ${verifiedAt})` : ''}.<br>
       Formula: <code>cost = (input × rate + output × rate + cache_read × rate + cache_create × rate) / 1 000 000</code><br>
       Katra ziņojuma izmaksa tiek aprēķināta ar tā konkrētā modeļa likmi (sesijas vidū iespējams modeļa maiņa — tādā gadījumā summas ir korektas pa segmentiem).
     </p>

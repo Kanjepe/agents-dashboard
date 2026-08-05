@@ -435,6 +435,18 @@ code {
   text-shadow: 0 0 6px rgba(216, 245, 221, 0.4);
 }
 
+.provider-filter[data-session-provider="claude"][data-active="true"],
+.provider-filter[data-session-provider="claude"][data-active="true"] .filter__mark {
+  color: var(--green);
+  text-shadow: 0 0 6px var(--green-glow);
+}
+
+.provider-filter[data-session-provider="codex"][data-active="true"],
+.provider-filter[data-session-provider="codex"][data-active="true"] .filter__mark {
+  color: var(--amber);
+  text-shadow: 0 0 6px var(--amber-glow);
+}
+
 .filter__divider {
   color: var(--border);
   align-self: center;
@@ -528,6 +540,29 @@ code {
   gap: 0.5rem;
   color: var(--text-dim);
   font-weight: 500;
+}
+
+.entry__provider {
+  display: inline-block;
+  padding: 0.02rem 0.35rem;
+  border: 1px solid var(--green);
+  color: var(--green);
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1.35;
+}
+
+.entry__provider[data-provider="codex"] {
+  border-color: var(--amber);
+  color: var(--amber);
+  background: var(--amber-soft);
+  text-shadow: 0 0 6px var(--amber-glow);
+}
+
+.entry__provider[data-provider="claude"] {
+  background: var(--green-soft);
+  text-shadow: 0 0 6px var(--green-glow);
 }
 
 .entry__statuslabel {

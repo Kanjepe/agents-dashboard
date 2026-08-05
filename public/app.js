@@ -9,7 +9,8 @@ const countProcesses = document.getElementById('count-processes');
 const countLive = document.getElementById('count-live');
 const countWaiting = document.getElementById('count-waiting');
 const countPaused = document.getElementById('count-paused');
-const filterButtons = document.querySelectorAll('.filter');
+const filterButtons = document.querySelectorAll('.filter[data-filter]');
+const sessionProviderButtons = document.querySelectorAll('[data-session-provider]');
 
 const statsMetaEl = document.getElementById('stats-meta');
 const totalTodayEl = document.getElementById('total-today');
@@ -59,6 +60,11 @@ let processes = [];
 let stats = null;
 let statsCodex = null;
 let providerView = 'claude';
+let sessionProviderView = 'all';
+
+function sessionKey(session) {
+  return `${session.provider}:${session.sessionId}`;
+}
 
 function activeStats() {
   return providerView === 'codex' ? statsCodex : stats;
@@ -123,6 +129,16 @@ filterButtons.forEach((btn) => {
     });
     applyViewMode();
     refreshCurrentView();
+  });
+});
+
+sessionProviderButtons.forEach((btn) => {
+  btn.addEventListener('click', () => {
+    sessionProviderView = btn.dataset.sessionProvider;
+    sessionProviderButtons.forEach((button) => {
+      button.dataset.active = String(button.dataset.sessionProvider === sessionProviderView);
+    });
+    if (SESSION_FILTERS.has(currentFilter)) render();
   });
 });
 
@@ -273,6 +289,9 @@ function statusOrder(status) {
 }
 
 function matchesFilter(session) {
+  const providerMatches =
+    sessionProviderView === 'all' || session.provider === sessionProviderView;
+  if (!providerMatches) return false;
   if (currentFilter === 'all') return true;
   return session.status === currentFilter;
 }
@@ -281,6 +300,7 @@ const RECENT_SKILL_WINDOW_MS = 60 * 1000;
 
 function liveWorkItems() {
   if (currentFilter !== 'live' && currentFilter !== 'all') return [];
+  if (sessionProviderView === 'codex') return [];
   const items = [];
   const tl = activity?.timeline || [];
   const now = Date.now();
@@ -338,6 +358,7 @@ function renderLiveCard(item) {
 
 function renderEntry(s, index) {
   const status = s.status || 'idle';
+  const provider = s.provider || 'claude';
   const num = String(index + 1).padStart(2, '0');
   const statusLabel = STATUS_LABEL[status] || status;
   const subagent = s.currentTool === 'Task';
@@ -369,10 +390,11 @@ function renderEntry(s, index) {
   const toolChain = renderToolChain(s.toolHistory);
 
   return `
-    <article class="entry" data-status="${status}" data-session="${safeSid}">
+    <article class="entry" data-status="${status}" data-provider="${provider}" data-session="${safeSid}" data-session-key="${escapeHtml(sessionKey(s))}">
       <header class="entry__head">
         <span class="entry__id">[${num}]</span>
         <span class="entry__status">
+          <span class="entry__provider" data-provider="${provider}">${provider}</span>
           <span class="entry__dot" aria-hidden="true"></span>
           <span class="entry__statuslabel">${statusLabel}</span>
         </span>
@@ -424,6 +446,7 @@ function renderEntry(s, index) {
 function sessionSignature(s) {
   const recentTools = (s.toolHistory || []).slice(-CHAIN_LIMIT).map((t) => t.name).join('>');
   return [
+    s.provider || 'claude',
     s.status,
     s.title || '',
     s.projectName || '',
@@ -476,7 +499,7 @@ function render() {
     emptyEl.hidden = currentFilter === 'stats';
   } else {
     emptyEl.hidden = true;
-    const visibleIds = new Set(visible.map((s) => s.sessionId));
+    const visibleIds = new Set(visible.map(sessionKey));
 
     for (const [sid, el] of entryEls) {
       if (sid.startsWith('agent:') || sid.startsWith('skill:')) continue;
@@ -487,13 +510,14 @@ function render() {
     }
 
     visible.forEach((s, i) => {
-      let el = entryEls.get(s.sessionId);
+      const key = sessionKey(s);
+      let el = entryEls.get(key);
       const sig = sessionSignature(s);
 
       if (!el) {
         el = htmlToElement(renderEntry(s, i));
         el.dataset.sig = sig;
-        entryEls.set(s.sessionId, el);
+        entryEls.set(key, el);
       } else if (el.dataset.sig !== sig) {
         const fresh = htmlToElement(renderEntry(s, i));
         el.dataset.status = s.status;
@@ -505,7 +529,7 @@ function render() {
     });
 
     visible.forEach((s, i) => {
-      const el = entryEls.get(s.sessionId);
+      const el = entryEls.get(sessionKey(s));
       if (grid.children[i] !== el) {
         grid.insertBefore(el, grid.children[i] || null);
       }
@@ -543,7 +567,10 @@ function render() {
   }
 
   let live = 0, waiting = 0, paused = 0;
-  for (const s of all) {
+  const countedSessions = all.filter(
+    (session) => sessionProviderView === 'all' || session.provider === sessionProviderView,
+  );
+  for (const s of countedSessions) {
     if (s.status === 'live') live += 1;
     else if (s.status === 'waiting') waiting += 1;
     else if (s.status === 'paused') paused += 1;
@@ -1431,8 +1458,8 @@ function renderActivityRow(ev) {
   `;
 }
 
-function flashEntry(sessionId) {
-  const el = grid.querySelector(`[data-session="${CSS.escape(sessionId)}"]`);
+function flashEntry(session) {
+  const el = grid.querySelector(`[data-session-key="${CSS.escape(sessionKey(session))}"]`);
   if (!el) return;
   el.classList.remove('just-updated');
   void el.offsetWidth;
@@ -1467,7 +1494,7 @@ function connect() {
       return;
     }
     if (msg.type === 'snapshot') {
-      sessions = new Map((msg.sessions || []).map((s) => [s.sessionId, s]));
+      sessions = new Map((msg.sessions || []).map((s) => [sessionKey(s), s]));
       processes = msg.processes || [];
       if (msg.stats) stats = msg.stats;
       if (msg.statsCodex) statsCodex = msg.statsCodex;
@@ -1480,9 +1507,9 @@ function connect() {
       renderProjects();
       renderActivity();
     } else if (msg.type === 'session-update') {
-      sessions.set(msg.session.sessionId, msg.session);
+      sessions.set(sessionKey(msg.session), msg.session);
       render();
-      flashEntry(msg.session.sessionId);
+      flashEntry(msg.session);
     }
   });
 }

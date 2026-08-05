@@ -27,7 +27,8 @@ Works for anyone running Claude Code, Codex CLI, or both locally; no organizatio
 ## What it does
 
 - Watches Claude Code and Codex CLI session JSONL files in real time
-- Renders one live card per Claude session: status, model, tokens, tool usage, current tool, cost estimate, live burn rate (tok/min), and recent tool chain
+- Renders one provider-labeled live card per Claude or Codex session: status, model, tokens, tool usage, current tool, cost estimate, live burn rate (tok/min), and recent tool chain
+- Filters live sessions by `all | claude | codex` without mixing provider identities
 - Provides separate `claude | codex` statistics views with provider-specific model pricing and cost totals
 - Token-usage chart with tabbed range toggle: **hours** (last 24h with live current-hour pulse) · **days** (last 7d) · **weeks** (last 4w) · **months** (last 6m)
 - Discovers and lists installed skills and subagents — both global and project-scoped
@@ -51,11 +52,11 @@ The dashboard reads both providers' local files. Claude Code also has global and
 └── skills/<skill>/SKILL.md                  ← project skills
 
 ~/.codex/
-└── sessions/YYYY/MM/DD/rollout-*.jsonl      ← Codex CLI statistics source
+└── sessions/YYYY/MM/DD/rollout-*.jsonl      ← Codex CLI live session and statistics source
 ```
 
-- **Claude session JSONLs** (`~/.claude/projects/`) drive live cards and the Claude statistics view.
-- **Codex rollout JSONLs** (`~/.codex/sessions/`) drive the Codex statistics view. Codex live session cards are not part of the current scope.
+- **Claude session JSONLs** (`~/.claude/projects/`) drive provider-labeled live cards and the Claude statistics view.
+- **Codex rollout JSONLs** (`~/.codex/sessions/`) drive provider-labeled live cards and the Codex statistics view.
 - **Global skills/agents** are listed under the `▸ skills` and `▸ agents` tabs as-is.
 - **Project-scoped skills/agents** show up under the `▸ projects` tab, grouped by project. For this to work, set `PROJECTS_ROOT` to the folder where your code lives (default: `~/Projects`) — see [Projects tab](#projects-tab) below.
 
@@ -395,7 +396,7 @@ PORT=8080 npm start
 
 ### "No sessions or statistics appear"
 
-The dashboard reads Claude sessions from `~/.claude/projects/` and Codex statistics from `~/.codex/sessions/`. If a provider's folder does not exist, run that CLI once, then refresh the dashboard.
+The dashboard reads Claude sessions from `~/.claude/projects/` and Codex sessions from `~/.codex/sessions/`. If a provider's folder does not exist, run that CLI once, then refresh the dashboard.
 
 Verify:
 

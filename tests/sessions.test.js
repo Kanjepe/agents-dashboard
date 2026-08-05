@@ -123,6 +123,11 @@ test('aggregateSession: toolUsage histogram and toolCount', () => {
   assert.equal(s.toolCount, 3);
 });
 
+test('aggregateSession identifies Claude as the session provider', () => {
+  const s = aggregateSession('provider-test', [makeAssistant()], { size: 1, mtimeMs: Date.now() });
+  assert.equal(s.provider, 'claude');
+});
+
 test('aggregateSession: status="live" when last activity < 2 min ago', () => {
   const entries = [makeAssistant({ ts: isoAgo(30_000) })];
   const s = aggregateSession('sid', entries, statsAgo(30_000));

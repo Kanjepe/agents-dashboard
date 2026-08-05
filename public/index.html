@@ -30,8 +30,8 @@
           </span>
         </div>
         <p class="hdr__subtitle">
-          // live observation of claude-code sessions ·
-          <code>~/.claude/projects/</code>
+          // live observation of claude + codex sessions ·
+          <code>~/.claude/projects/</code> + <code>~/.codex/sessions/</code>
           ·
           <span class="hdr__today">
             today: <strong id="today-tokens">--</strong>
@@ -74,6 +74,21 @@
             </button>
             <button class="filter" data-filter="all">
               <span class="filter__mark">▸</span> all
+            </button>
+          </div>
+        </div>
+
+        <div class="filter-group">
+          <span class="filter-group__label">provider</span>
+          <div class="filter-group__buttons">
+            <button class="filter provider-filter" data-session-provider="all" data-active="true">
+              <span class="filter__mark">▸</span> all
+            </button>
+            <button class="filter provider-filter" data-session-provider="claude">
+              <span class="filter__mark">▸</span> claude
+            </button>
+            <button class="filter provider-filter" data-session-provider="codex">
+              <span class="filter__mark">▸</span> codex
             </button>
           </div>
         </div>
@@ -181,7 +196,7 @@
         no live transmissions
         <span class="empty__bracket">]</span>
         <br />
-        <span class="empty__hint">// start a claude session and it will appear here</span>
+        <span class="empty__hint">// start a claude or codex session and it will appear here</span>
       </p>
 
       <section class="stats-panel" aria-label="Token statistics">

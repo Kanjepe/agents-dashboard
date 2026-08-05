@@ -9,7 +9,13 @@ import { dirname, join } from 'node:path';
 import { scanAllSessions, loadSession, getProjectsDir } from './lib/sessions.js';
 import { detectClaudeProcesses } from './lib/processes.js';
 import { aggregateStats, invalidateStatsCache } from './lib/stats.js';
-import { aggregateCodexStats, getCodexSessionsDir, invalidateCodexStatsCache } from './lib/codex.js';
+import {
+  aggregateCodexStats,
+  getCodexSessionsDir,
+  invalidateCodexStatsCache,
+  loadCodexSession,
+  scanCodexSessions,
+} from './lib/codex.js';
 import { getRegistry, getSkillDetail, getAgentDetail } from './lib/registry.js';
 
 function aggregateActivity(sessions) {
@@ -120,8 +126,12 @@ function aggregateActivity(sessions) {
 }
 
 async function buildSnapshot() {
-  const [sessions, processes, stats, statsCodex, registry] = await Promise.all([
+  const [claudeSessions, codexSessions, processes, stats, statsCodex, registry] = await Promise.all([
     scanAllSessions(),
+    scanCodexSessions().catch((err) => {
+      console.error('[codex] live session scan failed:', err.message);
+      return [];
+    }),
     detectClaudeProcesses(),
     aggregateStats(),
     aggregateCodexStats().catch((err) => {
@@ -130,7 +140,10 @@ async function buildSnapshot() {
     }),
     getRegistry(),
   ]);
-  const activity = aggregateActivity(sessions);
+  const sessions = [...claudeSessions, ...codexSessions].sort(
+    (a, b) => new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime(),
+  );
+  const activity = aggregateActivity(claudeSessions);
   return {
     sessions,
     processes,
@@ -311,8 +324,16 @@ const codexWatcher = chokidar.watch(`${codexSessionsDir.replace(/\\/g, '/')}/**/
   awaitWriteFinish: { stabilityThreshold: 200, pollInterval: 100 },
 });
 
-function onCodexJsonlChange() {
+async function onCodexJsonlChange(filePath) {
   invalidateCodexStatsCache();
+  try {
+    const session = await loadCodexSession(filePath);
+    if (session) {
+      broadcast({ type: 'session-update', session });
+    }
+  } catch (err) {
+    console.error(`[codex-watch] failed to load ${filePath}:`, err.message);
+  }
 }
 
 codexWatcher.on('add', onCodexJsonlChange);

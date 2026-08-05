@@ -106,7 +106,9 @@ input+output = total in samples). Long-context threshold is per request: 272K in
 4. `public/` — provider toggle in the stats panel head; `renderStats()` selects `activeStats()`;
    hide memory-split + observer badges in Codex view.
 5. Tests: codex-pricing tests + a fixture rollout file for the delta logic.
-6. Live sessions view for Codex remains OUT OF SCOPE v1 (stats only); revisit if needed.
+6. Codex live sessions were added on 2026-08-05 with `all | claude | codex` filtering,
+   explicit provider badges, collision-safe provider/session keys, recent-file scanning, and
+   WebSocket updates from changed rollout files.
 
 ## Open questions
 

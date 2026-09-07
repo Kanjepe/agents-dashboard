@@ -39,11 +39,29 @@ test('codexEstimateCostUsd: gpt-6-astra splits cached vs uncached input', () => 
   assert.ok(Math.abs(cost - 1.1) < 1e-9, `got ${cost}`);
 });
 
-test('codexRateForModel: gpt-5.6-sol standard rates', () => {
+test('codexRateForModel: gpt-5.6-sol promo rates from 2026-08-21 (current default)', () => {
   const r = codexRateForModel('gpt-5.6-sol');
+  assert.equal(r.input, 4);
+  assert.equal(r.cachedInput, 0.4);
+  assert.equal(r.output, 20);
+  const long = codexRateForModel('gpt-5.6-sol', { longContext: true });
+  assert.equal(long.input, 8);
+  assert.equal(long.cachedInput, 0.8);
+  assert.equal(long.output, 30);
+});
+
+test('codexRateForModel: gpt-5.6-sol launch rates before the 2026-08-21 promo', () => {
+  const r = codexRateForModel('gpt-5.6-sol', { timestamp: '2026-08-04T12:00:00Z' });
   assert.equal(r.input, 5);
   assert.equal(r.cachedInput, 0.5);
   assert.equal(r.output, 30);
+  const long = codexRateForModel('gpt-5.6-sol', {
+    timestamp: '2026-08-04T12:00:00Z',
+    longContext: true,
+  });
+  assert.equal(long.input, 10);
+  assert.equal(long.cachedInput, 1);
+  assert.equal(long.output, 45);
 });
 
 test('codexRateForModel: long-context premium above 272K', () => {
@@ -76,8 +94,31 @@ test('codexEstimateCostUsd: input INCLUDES cached — uncached portion at input 
 });
 
 test('codexEstimateCostUsd: output billed at output rate', () => {
-  const cost = codexEstimateCostUsd({ output: 1_000_000 }, 'gpt-5.6-sol');
-  assert.equal(cost, 30);
+  const promo = codexEstimateCostUsd({ output: 1_000_000 }, 'gpt-5.6-sol');
+  assert.equal(promo, 20);
+  const launch = codexEstimateCostUsd(
+    { output: 1_000_000 },
+    'gpt-5.6-sol',
+    '2026-08-04T12:00:00Z',
+  );
+  assert.equal(launch, 30);
+});
+
+test('codexEstimateCostUsd: timestamp selects the gpt-5.6 pre-promo tier', () => {
+  // 200K input of which 100K cached, before the promo:
+  // 100K × $5 + 100K × $0.50 = $0.55; from 2026-08-21: 100K × $4 + 100K × $0.40 = $0.44
+  const before = codexEstimateCostUsd(
+    { input: 200_000, cachedInput: 100_000 },
+    'gpt-5.6-sol',
+    '2026-08-20T12:00:00Z',
+  );
+  assert.ok(Math.abs(before - 0.55) < 1e-9, `got ${before}`);
+  const after = codexEstimateCostUsd(
+    { input: 200_000, cachedInput: 100_000 },
+    'gpt-5.6-sol',
+    '2026-08-21T12:00:00Z',
+  );
+  assert.ok(Math.abs(after - 0.44) < 1e-9, `got ${after}`);
 });
 
 test('codexEstimateCostUsd: long-context premium when input exceeds 272K', () => {

@@ -631,6 +631,7 @@ function renderStats() {
 
 // Mirrors lib/pricing.js FAMILIES (base rates; server table wins when present).
 const PRICING_FALLBACK = [
+  { family: 'fable-5.1', label: 'fable 5.1 / mythos 5.1', input: 10, output: 50, cacheRead: 0.25, cacheCreate: 12.5 },
   { family: 'fable-5', label: 'fable 5 / mythos 5', input: 10, output: 50, cacheRead: 1, cacheCreate: 12.5 },
   { family: 'opus-fast', label: 'opus fast', input: 10, output: 50, cacheRead: 1, cacheCreate: 12.5 },
   { family: 'opus-modern', label: 'opus 4.5 – 5', input: 5, output: 25, cacheRead: 0.5, cacheCreate: 6.25 },
@@ -644,6 +645,7 @@ const PRICING_FALLBACK = [
 function familyForModel(model) {
   if (!model) return null;
   const m = String(model).toLowerCase();
+  if (/fable-5-1|mythos-5-1/.test(m)) return 'fable-5.1';
   if (m.includes('fable') || m.includes('mythos')) return 'fable-5';
   if (m.includes('opus')) {
     if (m.includes('fast')) return 'opus-fast';

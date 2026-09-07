@@ -11,6 +11,7 @@ import {
 // ─── codexFamilyFor ──────────────────────────────────────────────────────────
 
 test('codexFamilyFor: maps observed models to families', () => {
+  assert.equal(codexFamilyFor('gpt-6-astra'), 'gpt-6');
   assert.equal(codexFamilyFor('gpt-5.6-sol'), 'gpt-5.6');
   assert.equal(codexFamilyFor('gpt-5.5'), 'gpt-5.5');
   assert.equal(codexFamilyFor('gpt-5.4-mini'), 'gpt-5.4-mini');
@@ -19,6 +20,24 @@ test('codexFamilyFor: maps observed models to families', () => {
 });
 
 // ─── codexRateForModel ───────────────────────────────────────────────────────
+
+test('codexRateForModel: gpt-6-astra standard and long-context rates', () => {
+  const r = codexRateForModel('gpt-6-astra');
+  assert.equal(r.input, 10);
+  assert.equal(r.cachedInput, 1);
+  assert.equal(r.output, 50);
+  const long = codexRateForModel('gpt-6-astra', { longContext: true });
+  assert.equal(long.input, 20);
+  assert.equal(long.cachedInput, 2);
+  assert.equal(long.output, 75);
+});
+
+test('codexEstimateCostUsd: gpt-6-astra splits cached vs uncached input', () => {
+  // 200K input (below 272K threshold) of which 100K cached:
+  // 100K × $10 + 100K × $1 = $1.10
+  const cost = codexEstimateCostUsd({ input: 200_000, cachedInput: 100_000 }, 'gpt-6-astra');
+  assert.ok(Math.abs(cost - 1.1) < 1e-9, `got ${cost}`);
+});
 
 test('codexRateForModel: gpt-5.6-sol standard rates', () => {
   const r = codexRateForModel('gpt-5.6-sol');
@@ -81,6 +100,7 @@ test('codexEstimateCostUsd: mini model', () => {
 test('getCodexPricingTable: includes all observed families with cachedInput', () => {
   const table = getCodexPricingTable();
   const families = table.map((p) => p.family);
+  assert.ok(families.includes('gpt-6'));
   assert.ok(families.includes('gpt-5.6'));
   assert.ok(families.includes('gpt-5.5'));
   assert.ok(families.includes('gpt-5.4-mini'));

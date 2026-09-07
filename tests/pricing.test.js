@@ -15,6 +15,13 @@ test('familyFor: fable and mythos map to fable-5', () => {
   assert.equal(familyFor('claude-mythos-5'), 'fable-5');
 });
 
+test('familyFor: fable 5.1 and mythos 5.1 are their own family', () => {
+  assert.equal(familyFor('claude-fable-5-1'), 'fable-5.1');
+  assert.equal(familyFor('claude-mythos-5-1'), 'fable-5.1');
+  // plain 5 stays in the old family
+  assert.equal(familyFor('claude-fable-5'), 'fable-5');
+});
+
 test('familyFor: modern opus (4.5+ and 5) maps to opus-modern', () => {
   assert.equal(familyFor('claude-opus-5'), 'opus-modern');
   assert.equal(familyFor('claude-opus-4-8'), 'opus-modern');
@@ -55,6 +62,20 @@ test('rateForModel: fable 5 is $10/$50 with derived cache rates', () => {
   assert.equal(r.cacheRead, 1);
   assert.equal(r.cacheCreate, 12.5);
   assert.equal(r.cacheCreate1h, 20);
+});
+
+test('rateForModel: fable 5.1 keeps $10/$50 but cache reads drop to $0.25', () => {
+  const r = rateForModel('claude-fable-5-1');
+  assert.equal(r.input, 10);
+  assert.equal(r.output, 50);
+  assert.equal(r.cacheRead, 0.25); // flat rate, not derived 0.1×input
+  assert.equal(r.cacheCreate, 12.5); // writes unchanged
+  assert.equal(r.cacheCreate1h, 20);
+});
+
+test('estimateCostUsd: fable 5.1 cache reads are 75% cheaper than fable 5', () => {
+  assert.equal(estimateCostUsd({ cacheRead: 1_000_000 }, 'claude-fable-5-1'), 0.25);
+  assert.equal(estimateCostUsd({ cacheRead: 1_000_000 }, 'claude-fable-5'), 1);
 });
 
 test('rateForModel: modern opus is $5/$25', () => {
@@ -165,6 +186,7 @@ test('getPricingTable: includes fable and both opus generations', () => {
   const table = getPricingTable();
   const families = table.map((p) => p.family);
   assert.ok(families.includes('fable-5'));
+  assert.ok(families.includes('fable-5.1'));
   assert.ok(families.includes('opus-modern'));
   assert.ok(families.includes('opus-legacy'));
   assert.ok(families.includes('sonnet-5'));
@@ -175,6 +197,7 @@ test('getPricingTable: includes fable and both opus generations', () => {
 
 test('modelLabel: normalizes model ids to short labels', () => {
   assert.equal(modelLabel('claude-fable-5'), 'fable 5');
+  assert.equal(modelLabel('claude-fable-5-1'), 'fable 5.1');
   assert.equal(modelLabel('claude-opus-4-8'), 'opus 4.8');
   assert.equal(modelLabel('claude-opus-5'), 'opus 5');
   assert.equal(modelLabel('claude-haiku-4-5-20251001'), 'haiku 4.5');
